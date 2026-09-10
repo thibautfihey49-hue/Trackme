@@ -18,12 +18,12 @@ class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         
-        val messages: List<SmsMessage> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+        val messages: Array<SmsMessage> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
         } else {
             @Suppress("DEPRECATION")
             val pdus = intent.extras?.get("pdus") as? Array<*>
-            pdus?.map { SmsMessage.createFromPdu(it as ByteArray) } ?: emptyList()
+            pdus?.map { SmsMessage.createFromPdu(it as ByteArray) }?.toTypedArray() ?: emptyArray()
         }
 
         for (msg in messages) {
