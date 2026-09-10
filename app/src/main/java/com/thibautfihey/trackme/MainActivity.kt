@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.telephony.SmsManager
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,6 +16,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import java.io.File
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -32,7 +34,7 @@ class MainActivity : AppCompatActivity() {
     private var timer: Timer? = null
     private val sms = SmsManager.getDefault()
 
-    // ✅ Toutes les permissions nécessaires
+    // ✅ Permissions complètes
     private val perms = mutableListOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.SEND_SMS,
@@ -42,14 +44,16 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
         }
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
     }.toTypedArray()
     
     private val reqPerm = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
-        val allOk = r.all { it.value }
-        if (allOk) {
-            initApp()
-        } else {
-            Toast.makeText(this, "⚠️ Toutes les permissions sont requises pour fonctionner", Toast.LENGTH_LONG).show()
+        if (r.all { it.value }) initApp()
+        else {
+            Toast.makeText(this, "⚠️ Toutes les permissions sont requises", Toast.LENGTH_LONG).show()
             tvStatus.text = "❌ Permissions refusées"
         }
     }
@@ -57,7 +61,16 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        Configuration.getInstance().load(this, getSharedPreferences("osm", MODE_PRIVATE))
+        
+        // ✅ CONFIGURATION OSMDROID OBLIGATOIRE
+        val osmConfig = Configuration.getInstance()
+        osmConfig.load(this, getSharedPreferences("osm", MODE_PRIVATE))
+        // ✅ Dossier de cache pour les tuiles de carte
+        val osmDir = File(getExternalFilesDir(null), "osmdroid")
+        if (!osmDir.exists()) osmDir.mkdirs()
+        osmConfig.osmdroidBasePath = osmDir
+        osmConfig.osmdroidTileCache = File(osmDir, "tiles")
+        
         initViews()
         checkPermissions()
     }
@@ -71,9 +84,11 @@ class MainActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btnSendPosition)
         btnTrack = findViewById(R.id.btnTrack)
         
+        // ✅ Configuration CARTE
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
         map.controller.setZoom(15.0)
+        map.isTilesScaledToDpi = true
         
         btnReq.setOnClickListener { reqPos() }
         btnSend.setOnClickListener { sendPos() }
@@ -85,17 +100,15 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }.toTypedArray()
         
-        if (needed.isEmpty()) {
-            initApp()
-        } else {
+        if (needed.isEmpty()) initApp()
+        else {
             tvStatus.text = "⏳ Demande des permissions..."
             reqPerm.launch(needed)
         }
     }
 
     private fun initApp() {
-        tvStatus.text = "✅ Démarrage du service de localisation..."
-        // ✅ Démarrer le service SEULEMENT après avoir les permissions
+        tvStatus.text = "✅ Carte chargée — Démarrage service..."
         startService(Intent(this, LocationService::class.java))
         
         SmsReceiver.onRequestReceived = { from ->
@@ -107,7 +120,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 otherLoc = GeoPoint(lat, lon)
                 updateOtherMarker()
-                tvStatus.text = "✅ Position reçue de $from\n${"%.6f".format(lat)}, ${"%.6f".format(lon)}"
+                tvStatus.text = "✅ De $from\n${"%.6f".format(lat)}, ${"%.6f".format(lon)}"
             }
         }
         
@@ -119,7 +132,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        tvStatus.text = "✅ Prêt — entrez un numéro"
+        tvStatus.text = "✅ Prêt — Carte OK"
     }
 
     private fun sendSms(dest: String, msg: String) {
@@ -142,7 +155,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun reqPos() {
         val n = getNum() ?: return
-        tvStatus.text = "📥 Demande de position..."
+        tvStatus.text = "📥 Demande..."
         sendSms(n, "TRACKME:REQUEST")
     }
 
@@ -165,7 +178,7 @@ class MainActivity : AppCompatActivity() {
             timer!!.cancel()
             timer = null
             btnTrack.text = "🔄 Suivre 1 min"
-            tvStatus.text = "✅ Suivi arrêté"
+            tvStatus.text = "✅ Arrêté"
         } else {
             val n = getNum() ?: return
             btnTrack.text = "⏹️ Arrêter"
@@ -180,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                                 cancel()
                                 timer = null
                                 btnTrack.text = "🔄 Suivre 1 min"
-                                tvStatus.text = "✅ Suivi terminé"
+                                tvStatus.text = "✅ Terminé"
                             } else {
                                 sendSms(n, "TRACKME:REQUEST")
                                 tvStatus.text = "🔄 Encore $sec s..."
@@ -221,5 +234,15 @@ class MainActivity : AppCompatActivity() {
             otherMarker!!.position = l
         }
         map.invalidate()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        map.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        map.onPause()
     }
 }

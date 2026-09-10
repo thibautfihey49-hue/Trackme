@@ -9,9 +9,11 @@
     <uses-permission android:name="android.permission.READ_SMS" />
     <uses-permission android:name="android.permission.BROADCAST_SMS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- ✅ NÉCESSAIRE pour Android 14+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- ✅ NOUVEAU : pour la carte osmdroid -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:allowBackup="true"
@@ -19,6 +21,7 @@
         android:label="TrackMe"
         android:supportsRtl="true"
         android:theme="@style/Theme.TrackMe"
+        android:requestLegacyExternalStorage="true"
         tools:targetApi="31">
 
         <activity
