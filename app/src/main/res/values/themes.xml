@@ -1,1 +1,2 @@
-<resources><style name="Theme.Material3.DayNight" parent="Theme.Material3.DayNight"><item name="colorPrimary">#0066FF</item></style></resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources><style name="Theme.TrackMe" parent="Theme.MaterialComponents.DayNight.NoActionBar"><item name="colorPrimary">@color/primary</item><item name="android:statusBarColor">@color/primary</item></style></resources>

@@ -2,36 +2,41 @@ package com.thibautfihey.trackme
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Telephony
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-class SmsReceiver: BroadcastReceiver(){
- override fun onReceive(context:Context, intent:Intent){
-  if(intent.action!=Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-  val msgs=Telephony.Sms.Intents.getMessagesFromIntent(intent)
-  var handled=false
-  for(sms in msgs){
-   val body=sms.messageBody?:continue
-   val from=sms.originatingAddress?:continue
-   when{
-    body.startsWith("SHAREPOS_CMD:") -> { handled=true; CommandManager.handle(context,from,body) }
-    body.startsWith("SHAREPOS:") -> {
-     handled=true
-     try{
-      val d=body.removePrefix("SHAREPOS:").split(";")
-      if(d.size>=2){
-        val lat=d[0].toDouble(); val lng=d[1].toDouble()
-        val item=HistoryItem(from,lat,lng,System.currentTimeMillis())
-        StreetPreviewManager.getStreetName(lat,lng){ street->
-          item.streetName=street; HistoryManager.save(context,item)
-          LocalBroadcastManager.getInstance(context).sendBroadcast(Intent("NEW_POS_SMS").apply{ putExtra("lat",lat); putExtra("lng",lng); putExtra("from",from); putExtra("street",street) })
-        }
-        HistoryManager.save(context,item)
-        LocalBroadcastManager.getInstance(context).sendBroadcast(Intent("NEW_POS_SMS").apply{ putExtra("lat",lat); putExtra("lng",lng); putExtra("from",from); putExtra("street","Rue en cours...") })
-      }
-     }catch(e:Exception){}
+import android.telephony.SmsMessage
+import android.util.Log
+
+class SmsReceiver : BroadcastReceiver() {
+    companion object {
+        const val TAG = "TrackMeSMS"
+        const val SMS_PREFIX = "TRACKME:"
+        var onPositionReceived: ((lat:Double, lon:Double, from:String)->Unit)?=null
+        var onRequestReceived: ((from:String)->Unit)?=null
     }
-   }
-  }
-  if(handled){ try{ abortBroadcast() }catch(e:Exception){} }
- }
+    override fun onReceive(context: Context?, intent: Intent?) {
+        if(intent?.action!=Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        val messages = if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.KITKAT) {
+            Telephony.Sms.Intents.getMessagesFromIntent(intent)
+        } else {
+            @Suppress("DEPRECATION")
+            val pdus = intent.extras?.get("pdus") as? Array<*>
+            pdus?.map{ SmsMessage.createFromPdu(it as ByteArray) } ?: emptyList()
+        }
+        for(msg in messages) {
+            val body = msg.messageBody ?: ""
+            val from = msg.originatingAddress ?: ""
+            if(body.startsWith(SMS_PREFIX)) {
+                abortBroadcast()
+                val content = body.removePrefix(SMS_PREFIX)
+                if(content=="REQUEST") onRequestReceived?.invoke(from)
+                else if(content.startsWith("POS:")) {
+                    val c = content.removePrefix("POS:").split(",")
+                    if(c.size==2) try { onPositionReceived?.invoke(c[0].toDouble(),c[1].toDouble(),from) }
+                    catch(e:Exception){}
+                }
+                return
+            }
+        }
+    }
 }
