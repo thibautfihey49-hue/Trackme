@@ -31,7 +31,11 @@ class SmsReceiver : BroadcastReceiver() {
             val from = msg.originatingAddress ?: ""
             
             if (body.startsWith(SMS_PREFIX)) {
+                Log.d(TAG, "✅ SMS TrackMe INTERCEPTÉ — PAS DANS LA BOITE : $body")
+                
+                // 🚫 ANNULE LA PROPAGATION — N'APPARAÎT JAMAIS DANS LA MESSAGERIE
                 abortBroadcast()
+                
                 val content = body.removePrefix(SMS_PREFIX)
                 
                 when {
