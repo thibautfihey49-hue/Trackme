@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.telephony.SmsManager
-import android.telephony.SmsMessage
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -35,7 +34,6 @@ class MainActivity : AppCompatActivity() {
     private var timer: Timer? = null
     private val sms = SmsManager.getDefault()
 
-    // ✅ Permissions complètes
     private val perms = mutableListOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.SEND_SMS,
@@ -63,7 +61,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
-        // ✅ Configuration OSMDROID
         val osmConfig = Configuration.getInstance()
         osmConfig.load(this, getSharedPreferences("osm", MODE_PRIVATE))
         val osmDir = File(getExternalFilesDir(null), "osmdroid")
@@ -132,19 +129,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================================================
-    // ✅ ENVOI SMS SUR LE PORT 7777 — SMS DE DONNÉES INVISIBLE
-    // ==================================================
+    // ✅ SMS DONNÉES PORT 7777 — CORRIGÉ
     private fun sendSms(dest: String, msg: String) {
         try {
             val finalDest = if (!dest.startsWith("+")) "+$dest" else dest
-            
-            // 📨 Convertir le message en tableau de bytes
             val data = msg.toByteArray(Charsets.UTF_8)
             
-            // 🚀 ENVOI VIA LE PORT 7777 — N'APPARAÎT PAS DANS LA MESSAGERIE
-            // destinationAddress, scAddress, destinationPort, data
-            sms.sendDataMessage(finalDest, null, 7777.toShort(), data)
+            // sendDataMessage(destAddr, scAddr, destPort, data, sentIntent, deliveryIntent)
+            sms.sendDataMessage(finalDest, null, 7777.toShort(), data, null, null)
             
             android.util.Log.d("TrackMeSMS", "✅ SMS DONNÉES PORT 7777 → $finalDest : $msg")
         } catch (e: Exception) {
