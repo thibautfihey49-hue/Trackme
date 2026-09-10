@@ -1,4 +1,3 @@
-
 package com.thibautfihey.trackme
 import android.Manifest
 import android.content.*
@@ -63,5 +62,10 @@ class HistoryAdapter(private val list:List<HistoryItem>, private val onClick:(Hi
  class VH(v:android.view.View): RecyclerView.ViewHolder(v){ val tv1=v.findViewById<TextView>(R.id.tv_line1); val tv2=v.findViewById<TextView>(R.id.tv_line2) }
  override fun onCreateViewHolder(p:android.view.ViewGroup,vt:Int):VH{ val v=android.view.LayoutInflater.from(p.context).inflate(R.layout.item_history,p,false); return VH(v) }
  override fun getItemCount()=list.size
- override fun onBindViewHolder(h:VH,i:Int){ val it=list[i]; h.tv1.text="${it.streetName} - ${it.phone} (x${it.passCount})"; h.tv2.text="${it.getDate()} - ${it.lat}, ${it.lng}"; h.itemView.setOnClickListener{ onClick(it) } }
+ override fun onBindViewHolder(h:VH,i:Int){ 
+   val item=list[i]
+   h.tv1.text="${item.streetName} - ${item.phone} (x${item.passCount})"
+   h.tv2.text="${item.getDate()} - ${item.lat}, ${item.lng}"
+   h.itemView.setOnClickListener{ onClick(item) }
+ }
 }

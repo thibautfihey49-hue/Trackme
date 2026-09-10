@@ -1,7 +1,5 @@
-
 package com.thibautfihey.trackme
-import android.content.Context
-import com.squareup.okhttp3.*
+import okhttp3.*
 import org.json.JSONObject
 import java.io.IOException
 object StreetPreviewManager {
