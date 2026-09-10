@@ -3,6 +3,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsManager
 import android.widget.*
@@ -31,16 +32,26 @@ class MainActivity : AppCompatActivity() {
     private var timer: Timer? = null
     private val sms = SmsManager.getDefault()
 
-    private val perms = arrayOf(
+    // ✅ Toutes les permissions nécessaires
+    private val perms = mutableListOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.SEND_SMS,
         Manifest.permission.RECEIVE_SMS,
         Manifest.permission.POST_NOTIFICATIONS
-    )
+    ).apply {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+        }
+    }.toTypedArray()
     
     private val reqPerm = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { r ->
-        if (r.all { it.value }) initApp()
-        else Toast.makeText(this, "Permissions requises", Toast.LENGTH_LONG).show()
+        val allOk = r.all { it.value }
+        if (allOk) {
+            initApp()
+        } else {
+            Toast.makeText(this, "⚠️ Toutes les permissions sont requises pour fonctionner", Toast.LENGTH_LONG).show()
+            tvStatus.text = "❌ Permissions refusées"
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,11 +59,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         Configuration.getInstance().load(this, getSharedPreferences("osm", MODE_PRIVATE))
         initViews()
-        if (perms.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
-            initApp()
-        } else {
-            reqPerm.launch(perms)
-        }
+        checkPermissions()
     }
 
     private fun initViews() {
@@ -73,19 +80,34 @@ class MainActivity : AppCompatActivity() {
         btnTrack.setOnClickListener { toggleTrack() }
     }
 
+    private fun checkPermissions() {
+        val needed = perms.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+        
+        if (needed.isEmpty()) {
+            initApp()
+        } else {
+            tvStatus.text = "⏳ Demande des permissions..."
+            reqPerm.launch(needed)
+        }
+    }
+
     private fun initApp() {
+        tvStatus.text = "✅ Démarrage du service de localisation..."
+        // ✅ Démarrer le service SEULEMENT après avoir les permissions
         startService(Intent(this, LocationService::class.java))
         
         SmsReceiver.onRequestReceived = { from ->
             sendPosTo(from)
-            runOnUiThread { tvStatus.text = "📩 Demande reçue → Répondu" }
+            runOnUiThread { tvStatus.text = "📩 Demande reçue de $from → Répondu" }
         }
         
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLoc = GeoPoint(lat, lon)
                 updateOtherMarker()
-                tvStatus.text = "✅ De $from\n${"%.6f".format(lat)}, ${"%.6f".format(lon)}"
+                tvStatus.text = "✅ Position reçue de $from\n${"%.6f".format(lat)}, ${"%.6f".format(lon)}"
             }
         }
         
@@ -120,12 +142,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun reqPos() {
         val n = getNum() ?: return
-        tvStatus.text = "📥 Demande..."
+        tvStatus.text = "📥 Demande de position..."
         sendSms(n, "TRACKME:REQUEST")
     }
 
     private fun sendPosTo(dest: String) {
-        val l = myLoc ?: return
+        val l = myLoc ?: run {
+            Toast.makeText(this, "⚠️ Position pas encore disponible", Toast.LENGTH_SHORT).show()
+            return
+        }
         sendSms(dest, "TRACKME:POS:${l.latitude},${l.longitude}")
     }
 
@@ -140,7 +165,7 @@ class MainActivity : AppCompatActivity() {
             timer!!.cancel()
             timer = null
             btnTrack.text = "🔄 Suivre 1 min"
-            tvStatus.text = "✅ Arrêté"
+            tvStatus.text = "✅ Suivi arrêté"
         } else {
             val n = getNum() ?: return
             btnTrack.text = "⏹️ Arrêter"
@@ -155,7 +180,7 @@ class MainActivity : AppCompatActivity() {
                                 cancel()
                                 timer = null
                                 btnTrack.text = "🔄 Suivre 1 min"
-                                tvStatus.text = "✅ Terminé"
+                                tvStatus.text = "✅ Suivi terminé"
                             } else {
                                 sendSms(n, "TRACKME:REQUEST")
                                 tvStatus.text = "🔄 Encore $sec s..."
