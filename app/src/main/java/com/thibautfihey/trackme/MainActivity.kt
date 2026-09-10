@@ -35,11 +35,10 @@ class MainActivity: AppCompatActivity(){
   map.setMultiTouchControls(true)
   map.controller.setZoom(15.0)
   map.controller.setCenter(GeoPoint(47.473,-0.55))
-  // PAS de downloadAreaAsync - MAPNIK interdit le bulk download -> crash
   checkPerms()
-  findViewById<Button>(R.id.btn_share).setOnClickListener{ shareOnce() }
-  findViewById<Button>(R.id.btn_request).setOnClickListener{ requestRemote() }
-  findViewById<Button>(R.id.btn_stop_remote).setOnClickListener{ stopRemote() }
+  findViewById<Button>(R.id.btn_share).setOnClickListener{ safeShareOnce() }
+  findViewById<Button>(R.id.btn_request).setOnClickListener{ safeRequestRemote() }
+  findViewById<Button>(R.id.btn_stop_remote).setOnClickListener{ safeStopRemote() }
   findViewById<Button>(R.id.btn_start_auto).setOnClickListener{ startAuto() }
   findViewById<Button>(R.id.btn_stop_auto).setOnClickListener{ stopService(Intent(this, ShareLocationService::class.java)) }
   findViewById<Button>(R.id.btn_clear).setOnClickListener{ HistoryManager.clear(this); refreshHistory() }
@@ -55,44 +54,56 @@ class MainActivity: AppCompatActivity(){
   val perms=arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS, Manifest.permission.POST_NOTIFICATIONS)
   if(perms.any{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED}) ActivityCompat.requestPermissions(this,perms,REQ) else startLoc()
  }
+ private fun hasSmsPerm():Boolean{
+  return ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)==PackageManager.PERMISSION_GRANTED
+ }
+ private fun safeSendSms(phone:String, msg:String):Boolean{
+  if(phone.isBlank()){ Toast.makeText(this,"Numéro vide",Toast.LENGTH_SHORT).show(); return false }
+  if(!hasSmsPerm()){ Toast.makeText(this,"Permission SMS non accordée - va dans Paramètres > Apps > TrackMe > Autorisations",Toast.LENGTH_LONG).show(); checkPerms(); return false }
+  return try{
+   SmsManager.getDefault().sendTextMessage(phone,null,msg,null,null)
+   true
+  }catch(e:Exception){
+   Toast.makeText(this,"Erreur envoi SMS: ${e.message}",Toast.LENGTH_LONG).show()
+   false
+  }
+ }
  private fun startLoc(){
   if(ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) return
-  fused.lastLocation.addOnSuccessListener{ it?.let{ lastLoc=it; map.controller.setCenter(GeoPoint(it.latitude,it.longitude)) } }
-  val req=LocationRequest.create().apply{ interval=5000; priority=LocationRequest.PRIORITY_HIGH_ACCURACY }
-  fused.requestLocationUpdates(req, object:LocationCallback(){ override fun onLocationResult(r:LocationResult){ lastLoc=r.lastLocation } }, mainLooper)
+  try{
+   fused.lastLocation.addOnSuccessListener{ it?.let{ lastLoc=it; map.controller.setCenter(GeoPoint(it.latitude,it.longitude)) } }
+   val req=LocationRequest.create().apply{ interval=5000; priority=LocationRequest.PRIORITY_HIGH_ACCURACY }
+   fused.requestLocationUpdates(req, object:LocationCallback(){ override fun onLocationResult(r:LocationResult){ lastLoc=r.lastLocation } }, mainLooper)
+  }catch(e:Exception){}
  }
- private fun shareOnce(){
+ private fun safeShareOnce(){
   val phone=findViewById<EditText>(R.id.edit_phone).text.toString()
-  if(phone.isBlank()||lastLoc==null){ Toast.makeText(this,"Numéro ou loc manquant",Toast.LENGTH_SHORT).show(); return }
+  if(lastLoc==null){ Toast.makeText(this,"Localisation pas encore prête - attends 3s",Toast.LENGTH_SHORT).show(); return }
   val msg="SHAREPOS:${lastLoc!!.latitude};${lastLoc!!.longitude};${System.currentTimeMillis()}"
-  SmsManager.getDefault().sendTextMessage(phone,null,msg,null,null)
-  Toast.makeText(this,"Envoyé",Toast.LENGTH_SHORT).show()
+  if(safeSendSms(phone,msg)) Toast.makeText(this,"Position envoyée",Toast.LENGTH_SHORT).show()
  }
- private fun requestRemote(){
+ private fun safeRequestRemote(){
   val phone=findViewById<EditText>(R.id.edit_phone).text.toString()
   val code=findViewById<EditText>(R.id.edit_secret).text.toString()
+  if(code.isBlank()){ Toast.makeText(this,"Mets ton code secret d'abord",Toast.LENGTH_SHORT).show(); return }
   val cmd="SHAREPOS_CMD:START:60:$code"
-  SmsManager.getDefault().sendTextMessage(phone,null,cmd,null,null)
-  Toast.makeText(this,"Commande START envoyée",Toast.LENGTH_SHORT).show()
+  if(safeSendSms(phone,cmd)) Toast.makeText(this,"Commande START envoyée",Toast.LENGTH_SHORT).show()
  }
- private fun stopRemote(){
+ private fun safeStopRemote(){
   val phone=findViewById<EditText>(R.id.edit_phone).text.toString()
   val code=findViewById<EditText>(R.id.edit_secret).text.toString()
   val cmd="SHAREPOS_CMD:STOP:$code"
-  SmsManager.getDefault().sendTextMessage(phone,null,cmd,null,null)
+  if(safeSendSms(phone,cmd)) Toast.makeText(this,"Commande STOP envoyée",Toast.LENGTH_SHORT).show()
  }
  private fun startAuto(){
   val phones=findViewById<EditText>(R.id.edit_phone).text.toString()
+  if(phones.isBlank()){ Toast.makeText(this,"Numéro vide",Toast.LENGTH_SHORT).show(); return }
+  if(ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED){ checkPerms(); return }
   val i=Intent(this, ShareLocationService::class.java).apply{ putExtra("phones",phones); putExtra("interval",60) }
   if(android.os.Build.VERSION.SDK_INT>=android.os.Build.VERSION_CODES.O) startForegroundService(i) else startService(i)
  }
  fun addMarker(lat:Double,lng:Double,title:String){
-  val m=Marker(map)
-  m.position=GeoPoint(lat,lng)
-  m.title=title
-  m.setAnchor(Marker.ANCHOR_CENTER,Marker.ANCHOR_BOTTOM)
-  map.overlays.add(m)
-  map.invalidate()
+  val m=Marker(map); m.position=GeoPoint(lat,lng); m.title=title; m.setAnchor(Marker.ANCHOR_CENTER,Marker.ANCHOR_BOTTOM); map.overlays.add(m); map.invalidate()
  }
  private fun refreshHistory(){
   val list=HistoryManager.getAll(this)
