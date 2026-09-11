@@ -22,8 +22,9 @@
         .btn-green { background: #34a853; color: white; }
         .btn-orange { background: #fa7b17; color: white; }
         .btn-red { background: #ea4335; color: white; }
+        .btn-purple { background: #8e24aa; color: white; }
         
-        #status { padding: 12px; border-radius: 10px; background: #e6f4ea; color: #137333; margin: 8px 0; font-size: 14px; line-height: 1.5; }
+        #status { padding: 12px; border-radius: 10px; background: #e6f4ea; color: #137333; margin: 8px 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
         .status-wait { background: #fef7e0; color: #804b00; }
         .status-err { background: #fce8e6; color: #c5221f; }
         
@@ -51,8 +52,9 @@
 <div class="card">
     <input type="tel" id="num" placeholder="Numéro (ex: 0612345678)">
     
-    <div id="status">⏳ Initialisation GPS...</div>
+    <div id="status">⏳ En attente de permission GPS...</div>
     
+    <button class="btn-purple" onclick="requestPermission()">🔑 Accorder la permission GPS</button>
     <button class="btn-green" id="btnStartGPS" onclick="startGPS()">
         <span class="live-indicator" id="gpsDot"></span>
         📡 Activer GPS en temps réel
@@ -85,8 +87,7 @@ let gpsReady = false;
 
 // Initialisation carte
 function initMap() {
-    // Position par défaut (Angers) en attendant le vrai GPS
-    map = L.map('map', { zoomControl: true }).setView([47.4764, -0.5515], 16);
+    map = L.map('map', { zoomControl: true }).setView([47.4764, -0.5515], 14);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -94,7 +95,6 @@ function initMap() {
         detectRetina: true
     }).addTo(map);
     
-    // Marqueur moi
     const myIcon = L.divIcon({
         className: 'my-location-icon',
         html: '<div style="width:24px;height:24px;background:#1a73e8;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:8px;height:8px;background:white;border-radius:50%;"></div></div>',
@@ -103,7 +103,6 @@ function initMap() {
     });
     myMarker = L.marker([47.4764, -0.5515], { icon: myIcon, zIndexOffset: 1000 }).addTo(map);
     
-    // Cercle de précision
     accuracyCircle = L.circle([47.4764, -0.5515], {
         color: '#1a73e8',
         fillColor: '#1a73e8',
@@ -113,7 +112,6 @@ function initMap() {
         radius: 50
     }).addTo(map);
     
-    // Marqueur autre
     const otherIcon = L.divIcon({
         className: 'other-location-icon',
         html: '<div style="width:24px;height:24px;background:#ea4335;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
@@ -122,11 +120,36 @@ function initMap() {
     });
     otherMarker = L.marker([0, 0], { icon: otherIcon, opacity: 0 }).addTo(map);
 
-    // 🔴 LANCER LE GPS AUTOMATIQUEMENT APRÈS 1 SECONDE
-    setTimeout(() => {
-        setStatus("🚀 Démarrage automatique du GPS...");
-        startGPS();
-    }, 1000);
+    setStatus("🔑 Étape 1 : Clique sur le bouton VIOLET 'Accorder la permission GPS'");
+}
+
+// 🔑 DEMANDER LA PERMISSION EXPLICITEMENT
+function requestPermission() {
+    setStatus("⏳ Demande de permission...", "status-wait");
+    
+    if (typeof Android !== 'undefined' && Android.requestPermission) {
+        Android.requestPermission();
+    }
+    
+    // Essayer de lancer le GPS directement pour déclencher la popup
+    if (!navigator.geolocation) {
+        setStatus("❌ GPS non supporté sur cet appareil", "status-err");
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            setStatus("✅ Permission GPS ACCORDÉE !\n→ Clique maintenant sur 'Activer GPS en temps réel'");
+        },
+        (err) => {
+            if (err.code === err.PERMISSION_DENIED) {
+                setStatus("❌ Permission REFUSÉE !\n→ Va dans :\nParamètres → Applications → TrackMe → Autorisations → Localisation\n→ Sélectionne : 'Autoriser seulement lorsque l'appli est utilisée'\n→ Active aussi 'Position exacte'", "status-err");
+            } else {
+                setStatus("⚠️ Permission demandée. Réessaie.", "status-wait");
+            }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
 }
 
 // 📡 ACTIVER GPS
@@ -136,24 +159,22 @@ function startGPS() {
         return;
     }
     
-    setStatus("⏳ Recherche GPS en cours...", "status-wait");
+    setStatus("⏳ Recherche de position... Sors à l'extérieur si possible !", "status-wait");
     document.getElementById('gpsDot').classList.remove('active');
     
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     
     watchId = navigator.geolocation.watchPosition(
-        // ✅ SUCCÈS — VRAIE POSITION GPS !
+        // ✅ SUCCÈS
         (pos) => {
             myLat = pos.coords.latitude;
             myLon = pos.coords.longitude;
             myAccuracy = pos.coords.accuracy;
             gpsReady = true;
             
-            // 🎯 AFFICHER LA VRAIE POSITION
             document.getElementById('myCoords').textContent = 
                 `${myLat.toFixed(6)}°, ${myLon.toFixed(6)}°`;
             
-            // Précision
             let accClass, accText;
             if (myAccuracy <= 10) {
                 accClass = "precision-good"; accText = "✅ Excellent (" + Math.round(myAccuracy) + "m)";
@@ -166,30 +187,28 @@ function startGPS() {
             document.getElementById('accClass').innerHTML = accText;
             document.getElementById('accClass').className = "precision " + accClass;
             
-            // 📍 DÉPLACER LE MARQUEUR SUR LA VRAIE POSITION
             myMarker.setLatLng([myLat, myLon]);
             accuracyCircle.setLatLng([myLat, myLon]);
             accuracyCircle.setRadius(myAccuracy);
             
-            // 🗺️ CENTRER LA CARTE SUR MOI
             if (followMe) map.setView([myLat, myLon], 17);
             if (otherLat && otherLon) updateDistance();
             
             document.getElementById('gpsDot').classList.add('active');
-            setStatus("✅ GPS OK — Position précise !");
+            setStatus("✅ GPS ACTIF !\n📍 " + myLat.toFixed(6) + ", " + myLon.toFixed(6) + "\n🎯 Précision: " + Math.round(myAccuracy) + "m");
         },
-        // ❌ ERREUR GPS
+        // ❌ ERREUR
         (err) => {
             let msg;
             switch(err.code) {
                 case err.PERMISSION_DENIED: 
-                    msg = "❌ Permission GPS REFUSÉE !\n→ Va dans Paramètres → Applications → TrackMe → Autorisations → Localisation → TOUJOURS AUTORISER"; 
+                    msg = "❌ Permission GPS REFUSÉE !\n→ Va dans Paramètres → Applications → TrackMe → Autorisations → Localisation\n→ Sélectionne : 'Autoriser seulement lorsque l'appli est utilisée'"; 
                     break;
                 case err.POSITION_UNAVAILABLE: 
-                    msg = "⚠️ GPS indisponible !\n→ Active le GPS de ton téléphone\n→ Sors à l'extérieur pour un signal précis"; 
+                    msg = "⚠️ Position indisponible !\n→ Active le GPS de ton téléphone\n→ Sors à l'extérieur (le GPS ne marche presque pas à l'intérieur)\n→ Patiente 30 secondes"; 
                     break;
                 case err.TIMEOUT: 
-                    msg = "⏳ GPS trop lent...\n→ Active le mode précision dans les paramètres de localisation"; 
+                    msg = "⏳ GPS trop lent...\n→ Sors à l'extérieur\n→ Active le mode 'Haute précision' dans les paramètres de localisation"; 
                     break;
                 default: 
                     msg = "❌ Erreur GPS: " + err.message;
@@ -197,17 +216,12 @@ function startGPS() {
             setStatus(msg, "status-err");
             document.getElementById('gpsDot').classList.remove('active');
         },
-        // 🔧 PARAMÈTRES GPS PRÉCIS
-        {
-            enableHighAccuracy: true,    // 🎯 GPS PAR SATELLITE, PAS RÉSEAU
-            maximumAge: 0,               // ♻️ JAMAIS DE POSITION ENREGISTRÉE — TOUJOURS NOUVELLE
-            timeout: 30000               // ⏱️ 30 secondes max pour trouver la position
-        }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
     );
 }
 
 function centerOnMe() {
-    if (!gpsReady) { setStatus("⚠️ GPS pas encore prêt...", "status-wait"); return; }
+    if (!gpsReady) { setStatus("⚠️ GPS pas encore prêt... Attends la position !", "status-wait"); return; }
     followMe = true;
     map.setView([myLat, myLon], 17);
     setStatus("🎯 Centré sur ma position");
@@ -223,7 +237,6 @@ function stopGPS() {
     }
 }
 
-// 📤 ENVOYER POSITION
 function sendPos() {
     if (!gpsReady) { setStatus("⚠️ GPS pas encore prêt... Attends la position !", "status-wait"); return; }
     
@@ -250,7 +263,6 @@ function sendPos() {
     }
 }
 
-// 📥 DEMANDER POSITION
 function askPos() {
     let num = document.getElementById('num').value.trim().replace(/\s/g, '');
     if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
@@ -275,7 +287,6 @@ function askPos() {
     }
 }
 
-// 📩 RECEVOIR SMS
 window.receiveSMS = function(from, text) {
     if (text.startsWith("POS:")) {
         const parts = text.replace("POS:","").split(",");
