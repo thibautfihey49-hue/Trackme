@@ -27,6 +27,7 @@ import org.osmdroid.views.overlay.Marker
 
 class MainActivity : AppCompatActivity(), LocationListener {
     
+    // ===== TOUTES LES PROPRIÉTÉS EN PREMIER =====
     private lateinit var etNumber: EditText
     private lateinit var ivPhoto: ImageView
     private lateinit var tvStatus: TextView
@@ -87,52 +88,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
 
         requestNecessaryPermissions()
-    }
-
-    private val requestPermissionsLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.all { it.value }
-        if (allGranted) {
-            tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
-            initMapDirect()
-            startLocationUpdatesDirect()
-        } else {
-            tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
-        }
-    }
-
-    private fun requestNecessaryPermissions() {
-        val permissionsToRequest = mutableListOf<String>()
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.SEND_SMS)
-            }
-            if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.RECEIVE_SMS)
-            }
-            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.CAMERA)
-            }
-            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-            }
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
-            }
-        }
-        
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
-        } else {
-            tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
-            initMapDirect()
-            startLocationUpdatesDirect()
-        }
     }
 
     private fun initMapDirect() {
@@ -245,7 +200,54 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
+    private fun requestNecessaryPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.SEND_SMS)
+            }
+            if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.RECEIVE_SMS)
+            }
+            if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.CAMERA)
+            }
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
+            }
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+        }
+        
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
+            initMapDirect()
+            startLocationUpdatesDirect()
+        }
+    }
+
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
+
+    // ===== LE LAUNCHER TOUT EN BAS — APRÈS TOUTES LES PROPRIÉTÉS =====
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
+            initMapDirect()
+            startLocationUpdatesDirect()
+        } else {
+            tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
+        }
+    }
 }
