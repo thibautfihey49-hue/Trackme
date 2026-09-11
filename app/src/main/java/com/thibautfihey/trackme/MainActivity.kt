@@ -1,150 +1,120 @@
 package com.thibautfihey.trackme
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
-import android.widget.Toast
+import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
-import java.io.File
+import android.provider.Telephony
+import android.telephony.SmsMessage
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var etNumber: EditText
-    private lateinit var tvStatus: TextView
-    private lateinit var btnSend: Button
-    private lateinit var btnReq: Button
-    private lateinit var map: MapView
-    private var myLat = 47.47
-    private var myLon = -0.55
-    private lateinit var myMarker: Marker
-    private lateinit var otherMarker: Marker
+    private lateinit var webView: WebView
+    private val smsReceiver = SmsReceiver()
 
-    private val smsReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "TRACKME_POS") {
-                val lat = intent.getDoubleExtra("lat", 0.0)
-                val lon = intent.getDoubleExtra("lon", 0.0)
-                val from = intent.getStringExtra("from") ?: ""
-                runOnUiThread {
-                    otherMarker.position = GeoPoint(lat, lon)
-                    otherMarker.setVisible(true)
-                    map.invalidate()
-                    tvStatus.text = "✅ De $from\n$lat, $lon"
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        webView = WebView(this)
+        setContentView(webView)
+
+        // Activer JavaScript
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.settings.allowFileAccess = true
+        webView.settings.mediaPlaybackRequiresUserGesture = false
+        
+        // Interface JS ↔ Android
+        webView.addJavascriptInterface(WebAppInterface(this), "Android")
+        
+        // Charger la page locale
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+            }
+        }
+        
+        // Autoriser GPS
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    request?.grant(request.resources)
                 }
             }
         }
-    }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        webView.loadUrl("file:///android_asset/index.html")
 
-        // 📂 Cache DANS l'app — PAS de permission externe
-        val internalDir = File(filesDir, "osmdroid")
-        internalDir.mkdirs()
-        Configuration.getInstance().osmdroidBasePath = internalDir
-        Configuration.getInstance().osmdroidTileCache = File(internalDir, "tiles")
-        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
-
-        etNumber = findViewById(R.id.etNumber)
-        tvStatus = findViewById(R.id.tvStatus)
-        btnSend = findViewById(R.id.btnSend)
-        btnReq = findViewById(R.id.btnReq)
-        map = findViewById(R.id.map)
-
-        // 🗺️ Carte
-        map.setTileSource(TileSourceFactory.MAPNIK)
-        map.setMultiTouchControls(true)
-        map.controller.setZoom(12.5)
-        map.controller.setCenter(GeoPoint(myLat, myLon))
-
-        // 📍 Marqueurs
-        myMarker = Marker(map)
-        myMarker.position = GeoPoint(myLat, myLon)
-        myMarker.title = "Moi"
-        map.overlays.add(myMarker)
-
-        otherMarker = Marker(map)
-        otherMarker.position = GeoPoint(0.0, 0.0)
-        otherMarker.title = "Autre"
-        otherMarker.setVisible(false)
-        map.overlays.add(otherMarker)
-
-        // 🔘 Boutons
-        btnSend.setOnClickListener { sendPosition() }
-        btnReq.setOnClickListener { requestPosition() }
-
-        registerReceiver(smsReceiver, IntentFilter("TRACKME_POS"))
-
+        // Demander permissions
         checkPermissions()
-        tvStatus.text = "✅ PRÊT ! Entre un numéro"
+        
+        // Enregistrer récepteur SMS
+        registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
     }
 
     private fun checkPermissions() {
         val needed = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.SEND_SMS)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECEIVE_SMS)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED)
+            needed.add(Manifest.permission.READ_SMS)
 
         if (needed.isNotEmpty())
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
     }
 
-    override fun onRequestPermissionsResult(rq: Int, p: Array<out String>, res: IntArray) {
-        super.onRequestPermissionsResult(rq, p, res)
-        if (rq == 100) {
-            val ok = res.all { it == PackageManager.PERMISSION_GRANTED }
-            tvStatus.text = if (ok) "✅ Permissions OK" else "⚠️ Limité"
+    // Interface appelée depuis JS
+    class WebAppInterface(private val context: Context) {
+        @JavascriptInterface
+        fun sendDataSMS(dest: String, port: Int, message: String) {
+            val sm = SmsManager.getDefault()
+            sm.sendDataMessage(dest, null, port.toShort(), message.toByteArray(Charsets.UTF_8), null, null)
         }
     }
 
-    private fun sendPosition() {
-        val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
-        val dest = if (num.startsWith("+")) num else "+$num"
-        try {
-            SmsManager.getDefault().sendDataMessage(
-                dest, null, 7777.toShort(),
-                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8),
-                null, null
-            )
-            tvStatus.text = "✅ Envoyé à $num"
-        } catch (e: Exception) {
-            tvStatus.text = "❌ ${e.message}"
-        }
-    }
+    // Récepteur SMS
+    inner class SmsReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            try {
+                context ?: return
+                intent ?: return
+                
+                val messages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    Telephony.Sms.Intents.getMessagesFromIntent(intent)
+                } else {
+                    @Suppress("DEPRECATION")
+                    val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
+                    pdus.map { SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
+                }
 
-    private fun requestPosition() {
-        val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
-        val dest = if (num.startsWith("+")) num else "+$num"
-        try {
-            SmsManager.getDefault().sendDataMessage(
-                dest, null, 7777.toShort(),
-                "DEMANDE".toByteArray(Charsets.UTF_8),
-                null, null
-            )
-            tvStatus.text = "⏳ Demande envoyée"
-        } catch (e: Exception) {
-            tvStatus.text = "❌ ${e.message}"
+                for (msg in messages) {
+                    val from = msg.originatingAddress ?: continue
+                    val text = msg.messageBody ?: continue
+                    
+                    // Envoyer au JS
+                    runOnUiThread {
+                        webView.evaluateJavascript("receiveSMS('$from', '$text')", null)
+                    }
+                }
+            } catch (_: Exception) {}
         }
     }
 

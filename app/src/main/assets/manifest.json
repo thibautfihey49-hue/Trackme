@@ -1,0 +1,15 @@
+{
+    "name": "TrackMe Sans Internet",
+    "short_name": "TrackMe",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2196F3",
+    "icons": [
+        {
+            "src": "icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}

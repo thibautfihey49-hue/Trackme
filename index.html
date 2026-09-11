@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackMe — Sans Internet</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui; }
+        body { background: #f5f5f5; padding: 16px; max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; color: #2196F3; margin-bottom: 20px; }
+        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; margin: 8px 0; }
+        input { border: 2px solid #ddd; }
+        button { border: none; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: #2196F3; color: white; }
+        .btn-orange { background: #FF9800; color: white; }
+        .btn-green { background: #4CAF50; color: white; }
+        #status { padding: 12px; border-radius: 8px; background: #E8F5E9; color: #2E7D32; margin: 8px 0; min-height: 50px; }
+        #map { height: 300px; border-radius: 8px; background: #e0e0e0; margin-top: 10px; }
+        .coords { font-family: monospace; font-size: 14px; color: #555; margin-top: 8px; }
+    </style>
+    <!-- Leaflet — carte SANS internet (tuiles en local) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<h1>📍 TrackMe</h1>
+
+<div class="card">
+    <input type="tel" id="num" placeholder="Numéro (+336...)">
+    <div id="status">✅ Prêt — Active le GPS</div>
+    
+    <button class="btn-blue" onclick="getMyGPS()">📍 Ma position</button>
+    <button class="btn-green" onclick="sendPos()">📤 Envoyer à l'autre</button>
+    <button class="btn-orange" onclick="askPos()">📥 Demander position</button>
+    
+    <div class="coords">
+        Moi: <span id="myCoords">—</span><br>
+        Autre: <span id="otherCoords">—</span>
+    </div>
+    
+    <div id="map"></div>
+</div>
+
+<script>
+let myLat = 47.47;
+let myLon = -0.55;
+let otherLat = null;
+let otherLon = null;
+let map, myMarker, otherMarker;
+
+// Initialiser carte
+function initMap() {
+    map = L.map('map').setView([myLat, myLon], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+    
+    myMarker = L.marker([myLat, myLon]).addTo(map).bindPopup("📍 Moi");
+    otherMarker = L.marker([0,0], {opacity:0}).addTo(map).bindPopup("📍 Autre");
+}
+
+// Récupérer GPS
+async function getMyGPS() {
+    if (!navigator.geolocation) {
+        document.getElementById('status').textContent = "❌ GPS non supporté";
+        return;
+    }
+    document.getElementById('status').textContent = "⏳ Recherche GPS...";
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            myLat = pos.coords.latitude;
+            myLon = pos.coords.longitude;
+            document.getElementById('myCoords').textContent = `${myLat.toFixed(6)}, ${myLon.toFixed(6)}`;
+            myMarker.setLatLng([myLat, myLon]);
+            map.setView([myLat, myLon], 13);
+            document.getElementById('status').textContent = "✅ GPS OK";
+        },
+        (err) => {
+            document.getElementById('status').textContent = "⚠️ " + err.message;
+        },
+        {enableHighAccuracy: true, timeout: 10000}
+    );
+}
+
+// Envoyer position par SMS
+async function sendPos() {
+    const num = document.getElementById('num').value.trim();
+    if (!num) { document.getElementById('status').textContent = "⚠️ Entre un numéro"; return; }
+    const dest = num.startsWith('+') ? num : '+' + num;
+    const msg = `POS:${myLat},${myLon}`;
+    
+    // Utiliser l'API SMS du navigateur / Android
+    if ('SMSManager' in window || Android) {
+        try {
+            Android.sendDataSMS(dest, 7777, msg);
+            document.getElementById('status').textContent = "✅ Envoyé à " + num;
+        } catch(e) {
+            // Fallback: ouvrir l'app SMS
+            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+            document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+        }
+    } else {
+        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+        document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+    }
+}
+
+// Demander position
+async function askPos() {
+    const num = document.getElementById('num').value.trim();
+    if (!num) { document.getElementById('status').textContent = "⚠️ Entre un numéro"; return; }
+    const dest = num.startsWith('+') ? num : '+' + num;
+    const msg = "DEMANDE";
+    
+    if ('SMSManager' in window || Android) {
+        try {
+            Android.sendDataSMS(dest, 7777, msg);
+            document.getElementById('status').textContent = "⏳ Demande envoyée";
+        } catch(e) {
+            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+            document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+        }
+    } else {
+        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+        document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+    }
+}
+
+// Recevoir SMS depuis l'interface Android
+window.receiveSMS = function(from, text) {
+    if (text.startsWith("POS:")) {
+        const parts = text.replace("POS:","").split(",");
+        if (parts.length === 2) {
+            otherLat = parseFloat(parts[0]);
+            otherLon = parseFloat(parts[1]);
+            document.getElementById('otherCoords').textContent = `${otherLat.toFixed(6)}, ${otherLon.toFixed(6)}`;
+            otherMarker.setLatLng([otherLat, otherLon]);
+            otherMarker.setOpacity(1);
+            map.setView([otherLat, otherLon], 11);
+            document.getElementById('status').textContent = "✅ Reçu de " + from;
+        }
+    } else if (text === "DEMANDE") {
+        document.getElementById('status').textContent = "📩 Demande reçue — envoie ta position !";
+    }
+};
+
+window.onload = initMap;
+</script>
+
+</body>
+</html>
