@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.telephony.SmsManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         lateinit var webView: WebView
             private set
+        private const val REQUEST_OVERLAY = 999
     }
 
     private val SMS_PORT = 7777
@@ -59,9 +61,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         MainActivity.webView.loadUrl("file:///android_asset/index.html")
+        
+        // ✅ DEMANDER LA PERMISSION "AFFICHER PAR-DESSUS LES AUTRES APPS"
+        verifierPermissionSuperposition()
+        
         checkPermissions()
         
-        // ✅ RÉCEPTEUR DES SMS
         val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(smsReceiver, smsFilter, RECEIVER_NOT_EXPORTED)
@@ -76,7 +81,6 @@ class MainActivity : AppCompatActivity() {
             registerReceiver(smsSentReceiver, sentFilter)
         }
         
-        // ✅ RÉCEPTEUR DES MISES À JOUR DE POSITION DU SERVICE
         val positionFilter = IntentFilter(TrackerService.ACTION_POSITION_UPDATE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(positionUpdateReceiver, positionFilter, RECEIVER_NOT_EXPORTED)
@@ -85,7 +89,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ RECEVOIR LA POSITION DU SERVICE ET L'ENVOYER À LA WEBVIEW
+    // ✅ VÉRIFIER ET DEMANDER LA PERMISSION SUPERPOSITION
+    private fun verifierPermissionSuperposition() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                startActivityForResult(intent, REQUEST_OVERLAY)
+                Toast.makeText(this, "⚠️ Autorise 'Superposition sur d'autres apps' → Cliquez sur TrackMe → Autoriser", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private val positionUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
@@ -100,6 +114,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // ✅ QUAND TU FERMES L'APP → RIEN NE SE PASSE ! LE SERVICE CONTINUE !
+    override fun onDestroy() {
+        super.onDestroy()
+        // ❌ stopService SUPPRIMÉ VOLONTAIREMENT
+        unregisterReceiver(smsReceiver)
+        unregisterReceiver(smsSentReceiver)
+        unregisterReceiver(positionUpdateReceiver)
     }
 
     private fun checkPermissions() {
@@ -138,6 +161,15 @@ class MainActivity : AppCompatActivity() {
         
         @JavascriptInterface
         fun demarrerService() {
+            // ✅ VÉRIFIER LA PERMISSION SUPERPOSITION AVANT DE DÉMARRER
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                Toast.makeText(context, "⚠️ D'abord autorise la superposition sur d'autres apps", Toast.LENGTH_LONG).show()
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                return
+            }
+            
             val intent = Intent(context, TrackerService::class.java)
             intent.action = TrackerService.ACTION_START
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -145,7 +177,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 context.startService(intent)
             }
-            Toast.makeText(context, "✅ Service de suivi DÉMARRÉ — Tourne en arrière-plan", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "✅ SERVICE LANCÉ — INDESTRUCTIBLE\n🔒 Tourne MÊME SI TU FERMES L'APP", Toast.LENGTH_LONG).show()
         }
 
         @JavascriptInterface
@@ -153,7 +185,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(context, TrackerService::class.java)
             intent.action = TrackerService.ACTION_STOP
             context.startService(intent)
-            Toast.makeText(context, "⏹️ Service arrêté", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "⏹️ Service ARRÊTÉ — manuellement", Toast.LENGTH_SHORT).show()
         }
         
         @JavascriptInterface
@@ -184,28 +216,18 @@ class MainActivity : AppCompatActivity() {
                 sm.sendDataMessage(
                     destination,
                     null,
-                    SMS_PORT.toShort(),
+                    7777.toShort(),
                     data,
                     sentIntent,
                     null
                 )
             } catch (e: Exception) {
                 e.printStackTrace()
-                fallbackToTextSMS(destination, message)
-            }
-        }
-
-        private fun fallbackToTextSMS(destination: String, message: String) {
-            try {
-                val sm = SmsManager.getDefault()
-                sm.sendTextMessage(destination, null, message, null, null)
-                runOnUiThread {
-                    Toast.makeText(context, "📱 Envoyé par SMS texte classique", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e2: Exception) {
-                e2.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(context, "❌ Échec de l'envoi", Toast.LENGTH_SHORT).show()
+                try {
+                    val sm = SmsManager.getDefault()
+                    sm.sendTextMessage(destination, null, message, null, null)
+                } catch (e2: Exception) {
+                    e2.printStackTrace()
                 }
             }
         }
@@ -258,12 +280,5 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (_: Exception) {}
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(smsReceiver)
-        unregisterReceiver(smsSentReceiver)
-        unregisterReceiver(positionUpdateReceiver)
     }
 }

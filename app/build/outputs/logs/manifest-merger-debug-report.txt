@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-26:12
-INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-26:12
-INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-26:12
-INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-26:12
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:2:1-40:12
 MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /data/data/com.termux/files/home/.gradle/caches/transforms-3/82b31cb9f6aab621092c2b9d69fc8c15/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.appcompat:appcompat:1.6.1] /data/data/com.termux/files/home/.gradle/caches/transforms-3/42349fcab7a5a6a21b6eefeb34a9888a/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.fragment:fragment:1.3.6] /data/data/com.termux/files/home/.gradle/caches/transforms-3/9561d2a4c315777c8a665cde30511289/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
@@ -64,9 +64,29 @@ uses-permission#android.permission.INTERNET
 ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:9:5-67
 	android:name
 		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:9:22-64
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:10:5-77
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:10:22-74
+uses-permission#android.permission.FOREGROUND_SERVICE_LOCATION
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:11:5-86
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:11:22-83
+uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:12:5-81
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:12:22-78
+uses-permission#android.permission.WAKE_LOCK
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:13:5-68
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:13:22-65
+uses-permission#android.permission.SYSTEM_ALERT_WINDOW
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:16:5-78
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:16:22-75
 application
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:11:5-25:19
-INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:11:5-25:19
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:18:5-39:19
+INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:18:5-39:19
 MERGED from [androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
 MERGED from [androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
 MERGED from [androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:28:5-89
@@ -82,27 +102,39 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /data/data/com.termux/files
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 	android:label
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:13:9-32
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:20:9-32
+	android:persistent
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:22:9-34
 	android:allowBackup
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:12:9-35
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:19:9-35
 	android:theme
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:14:9-67
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:21:9-67
 activity#com.thibautfihey.trackme.MainActivity
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:16:9-23:20
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:24:9-31:20
 	android:exported
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:18:13-36
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:26:13-36
 	android:name
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:17:13-41
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:25:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:19:13-22:29
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:27:13-30:29
 action#android.intent.action.MAIN
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:20:17-69
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:28:17-69
 	android:name
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:20:25-66
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:28:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:21:17-77
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:29:17-77
 	android:name
-		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:21:27-74
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:29:27-74
+service#com.thibautfihey.trackme.TrackerService
+ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:33:9-37:72
+	android:exported
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:35:13-37
+	android:permission
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:37:13-69
+	android:foregroundServiceType
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:36:13-53
+	android:name
+		ADDED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:34:13-43
 uses-sdk
 INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml

@@ -39,7 +39,6 @@ class TrackerService : Service() {
             lastLocation = location
             Log.d(TAG, "📍 Position: ${location.latitude}, ${location.longitude} — Précision: ${location.accuracy}m")
             
-            // ✅ ENVOYER LA POSITION PAR BROADCAST — au lieu d'accéder directement à webView
             val intent = Intent(ACTION_POSITION_UPDATE).apply {
                 setPackage(packageName)
                 putExtra(EXTRA_LAT, location.latitude)
@@ -59,15 +58,16 @@ class TrackerService : Service() {
         createNotificationChannel()
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         isRunning = true
-        Log.d(TAG, "✅ Service DÉMARRÉ — Tourne en arrière-plan")
+        Log.d(TAG, "✅ Service CRÉÉ — INDESTRUCTIBLE")
     }
 
+    // ✅ START_STICKY = SI ANDROID LE TUE → IL REDÉMARRE TOUT SEUL INSTANTANÉMENT
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startTracking()
             ACTION_STOP -> stopTracking()
         }
-        return START_STICKY
+        return START_STICKY // 🔒 INDESTRUCTIBLE
     }
 
     private fun startTracking() {
@@ -85,14 +85,15 @@ class TrackerService : Service() {
                     10f,
                     locationListener
                 )
-                Log.d(TAG, "✅ GPS + Réseau ACTIF — Màj toutes 30s / 10m")
-            } else {
-                Log.e(TAG, "❌ Permission GPS non accordée !")
+                Log.d(TAG, "✅ GPS + Réseau ACTIF")
             }
+            
+            // ✅ OBLIGATOIRE : Service en PREMIÈRE PLAN = ANDROID NE PEUT PAS LE TUER
             startForeground(NOTIFICATION_ID, createNotification())
-            Log.d(TAG, "✅ Service en PREMIÈRE PLAN — Protégé")
+            Log.d(TAG, "✅ Service EN PREMIÈRE PLAN — PROTÉGÉ")
+            
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Erreur démarrage GPS", e)
+            Log.e(TAG, "❌ Erreur", e)
         }
     }
 
@@ -102,9 +103,9 @@ class TrackerService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             isRunning = false
-            Log.d(TAG, "⏹️ Service ARRÊTÉ")
+            Log.d(TAG, "⏹️ Service ARRÊTÉ — manuellement")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Erreur arrêt service", e)
+            Log.e(TAG, "❌ Erreur arrêt", e)
         }
     }
 
@@ -115,7 +116,7 @@ class TrackerService : Service() {
                 "TrackMe — Suivi GPS",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Service de suivi GPS en arrière-plan"
+                description = "Service INDESTRUCTIBLE — Tourne en permanence"
                 setShowBadge(false)
                 enableVibration(false)
             }
@@ -134,14 +135,15 @@ class TrackerService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("📍 TrackMe — ACTIF")
-            .setContentText("Suivi GPS en cours — Tourne en arrière-plan")
+            .setContentTitle("📍 TrackMe — ACTIF PERMANENT")
+            .setContentText("NE SE FERME JAMAIS — Service protégé")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
-            .setOngoing(true)
+            .setOngoing(true) // 🔒 IMPOSSIBLE DE SUPPRIMER LA NOTIFICATION
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(Notification.CATEGORY_SERVICE)
+            .setSilent(true)
             .build()
     }
 
