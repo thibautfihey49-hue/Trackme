@@ -67,51 +67,48 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            setContentView(R.layout.activity_main)
+        
+        // 🔑 CONTOURNEMENT TOTAL — DÉSACTIVER LE CONTRÔLE D'OSMDroid
+        System.setProperty("org.osmdroid.PermissionCheck.disabled", "true")
+        
+        setContentView(R.layout.activity_main)
 
-            // 🔑 SOLUTION CRUCIALE : Utiliser le DOSSIER INTERNE de l'app
-            // Plus besoin de permissions de stockage externe !
-            val internalCacheDir = File(filesDir, "osmdroid")
-            internalCacheDir.mkdirs()
-            
-            val config = Configuration.getInstance()
-            config.osmdroidBasePath = internalCacheDir
-            config.osmdroidTileCache = File(internalCacheDir, "tiles")
-            config.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        // Dossier cache interne — AUCUNE permission nécessaire
+        val internalCache = File(filesDir, "osmdroid_cache")
+        internalCache.mkdirs()
+        
+        val cfg = Configuration.getInstance()
+        cfg.osmdroidBasePath = internalCache
+        cfg.osmdroidTileCache = File(internalCache, "tiles")
+        cfg.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
 
-            etNumber = findViewById(R.id.etNumber)
-            tvStatus = findViewById(R.id.tvStatus)
-            map = findViewById(R.id.map)
+        etNumber = findViewById(R.id.etNumber)
+        tvStatus = findViewById(R.id.tvStatus)
+        map = findViewById(R.id.map)
 
-            // 🗺️ CARTE
-            map.setTileSource(TileSourceFactory.MAPNIK)
-            map.setMultiTouchControls(true)
-            map.controller.setZoom(12.5)
-            map.controller.setCenter(GeoPoint(myLat, myLon))
+        // Carte
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(12.5)
+        map.controller.setCenter(GeoPoint(myLat, myLon))
 
-            // 📍 Marqueurs
-            myMarker = Marker(map)
-            myMarker.position = GeoPoint(myLat, myLon)
-            myMarker.title = "Moi"
-            map.overlays.add(myMarker)
+        // Marqueurs
+        myMarker = Marker(map)
+        myMarker.position = GeoPoint(myLat, myLon)
+        myMarker.title = "Moi"
+        map.overlays.add(myMarker)
 
-            otherMarker = Marker(map)
-            otherMarker.position = GeoPoint(0.0, 0.0)
-            otherMarker.title = "Autre"
-            otherMarker.setVisible(false)
-            map.overlays.add(otherMarker)
+        otherMarker = Marker(map)
+        otherMarker.position = GeoPoint(0.0, 0.0)
+        otherMarker.title = "Autre"
+        otherMarker.setVisible(false)
+        map.overlays.add(otherMarker)
 
-            registerReceiver(smsReceiver, IntentFilter("TRACKME_POS"))
-            registerReceiver(smsReceiver, IntentFilter("TRACKME_REQ"))
+        registerReceiver(smsReceiver, IntentFilter("TRACKME_POS"))
+        registerReceiver(smsReceiver, IntentFilter("TRACKME_REQ"))
 
-            tvStatus.text = "✅ PRÊT !\nEntre un numéro"
-            requestPermissions()
-            
-        } catch (e: Exception) {
-            Toast.makeText(this, "ERREUR: ${e.message}", Toast.LENGTH_LONG).show()
-            e.printStackTrace()
-        }
+        tvStatus.text = "✅ PRÊT !\nEntre un numéro"
+        requestPermissions()
     }
 
     private fun requestPermissions() {
