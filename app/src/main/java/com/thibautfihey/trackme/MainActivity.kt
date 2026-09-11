@@ -1,16 +1,15 @@
 package com.thibautfihey.trackme
 
 import android.Manifest
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Location
-import android.net.Uri
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -18,7 +17,6 @@ import android.widget.Toast
 import android.telephony.SmsManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import org.osmdroid.api.IMapController
 import org.osmdroid.config.Configuration
@@ -26,11 +24,9 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import android.content.Context
-import android.location.LocationListener
-import android.location.LocationManager
 
 class MainActivity : AppCompatActivity(), LocationListener {
+    
     private lateinit var etNumber: EditText
     private lateinit var ivPhoto: ImageView
     private lateinit var tvStatus: TextView
@@ -62,20 +58,16 @@ class MainActivity : AppCompatActivity(), LocationListener {
         tvStatus = findViewById(R.id.tvStatus)
         map = findViewById(R.id.map)
 
-        // Initialiser carte
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
         mapController = map.controller
         mapController.setZoom(15.0)
 
-        // Gestionnaire de localisation
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        // Demander permissions
         requestNecessaryPermissions()
 
-        // ===== RÉCEPTEURS =====
         SmsReceiver.onPhotoReceived = { from, bitmap ->
             runOnUiThread {
                 ivPhoto.visibility = View.VISIBLE
@@ -95,6 +87,17 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 otherLocation = GeoPoint(lat, lon)
                 updateOtherMarker()
                 tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
+            }
+        }
+        
+        SmsReceiver.onRequestReceived = { from ->
+            runOnUiThread {
+                currentLocation?.let {
+                    sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
+                    tvStatus.text = "✅ Position envoyée à $from"
+                } ?: run {
+                    tvStatus.text = "⚠️ Position pas encore disponible"
+                }
             }
         }
     }
@@ -133,7 +136,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     private fun initMap() {
-        // Position par défaut
         val startPoint = GeoPoint(47.47, -0.55)
         mapController.setCenter(startPoint)
     }
@@ -187,7 +189,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
-    // ===== FONCTIONS GPS =====
     fun sendMyPosition(v: View) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
@@ -212,7 +213,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
         tvStatus.text = "⏳ Demande de position envoyée..."
     }
 
-    // ===== FONCTIONS PHOTO/VIDÉO =====
     fun sendPhotoBack(v: View) = sendSms("PHOTO")
     fun sendPhotoFront(v: View) = sendSms("PHOTO:FRONT")
     fun sendVideoBack(v: View) = sendSms("VIDEO")
