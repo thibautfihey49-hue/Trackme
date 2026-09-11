@@ -35,6 +35,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private var currentLocation: GeoPoint? = null
     private var otherLocation: GeoPoint? = null
+    private var mapInitialized = false
     
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -42,8 +43,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val allGranted = permissions.all { it.value }
         if (allGranted) {
             tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
-            initMapSafe()
-            startLocationUpdatesSafe()
+            if (!mapInitialized) {
+                initMapNow()
+                startLocationUpdatesNow()
+                mapInitialized = true
+            }
         } else {
             tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
         }
@@ -66,8 +70,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        requestNecessaryPermissions()
-
         SmsReceiver.onPhotoReceived = { from, bitmap ->
             runOnUiThread {
                 ivPhoto.visibility = View.VISIBLE
@@ -85,7 +87,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLocation = GeoPoint(lat, lon)
-                updateOtherMarkerSafe()
+                updateOtherMarkerNow()
                 tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
             }
         }
@@ -93,13 +95,15 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onRequestReceived = { from ->
             runOnUiThread {
                 currentLocation?.let {
-                    sendSmsDataSafe(from, "POSITION:${it.latitude},${it.longitude}")
+                    sendSmsDataNow(from, "POSITION:${it.latitude},${it.longitude}")
                     tvStatus.text = "✅ Position envoyée à $from"
                 } ?: run {
                     tvStatus.text = "⚠️ Position pas encore disponible"
                 }
             }
         }
+
+        requestNecessaryPermissions()
     }
 
     private fun requestNecessaryPermissions() {
@@ -130,17 +134,18 @@ class MainActivity : AppCompatActivity(), LocationListener {
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
-            initMapSafe()
-            startLocationUpdatesSafe()
+            initMapNow()
+            startLocationUpdatesNow()
+            mapInitialized = true
         }
     }
 
-    private fun initMapSafe() {
+    private fun initMapNow() {
         val startPoint = GeoPoint(47.47, -0.55)
         mapController.setCenter(startPoint)
     }
 
-    private fun startLocationUpdatesSafe() {
+    private fun startLocationUpdatesNow() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             try {
                 locationManager.requestLocationUpdates(
@@ -159,10 +164,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onLocationChanged(location: Location) {
         currentLocation = GeoPoint(location.latitude, location.longitude)
-        updateMyMarkerSafe()
+        updateMyMarkerNow()
     }
 
-    private fun updateMyMarkerSafe() {
+    private fun updateMyMarkerNow() {
         currentLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "my_position" }
             val marker = Marker(map)
@@ -176,7 +181,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
-    private fun updateOtherMarkerSafe() {
+    private fun updateOtherMarkerNow() {
         otherLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "other_position" }
             val marker = Marker(map)
@@ -196,7 +201,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             return
         }
         currentLocation?.let {
-            sendSmsDataSafe(num, "POSITION:${it.latitude},${it.longitude}")
+            sendSmsDataNow(num, "POSITION:${it.latitude},${it.longitude}")
             tvStatus.text = "✅ Position envoyée !"
         } ?: run {
             tvStatus.text = "⚠️ Position GPS non disponible encore"
@@ -209,26 +214,26 @@ class MainActivity : AppCompatActivity(), LocationListener {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsDataSafe(num, "REQUEST_POSITION")
+        sendSmsDataNow(num, "REQUEST_POSITION")
         tvStatus.text = "⏳ Demande de position envoyée..."
     }
 
-    fun sendPhotoBack(v: View) = sendSmsSafe("PHOTO")
-    fun sendPhotoFront(v: View) = sendSmsSafe("PHOTO:FRONT")
-    fun sendVideoBack(v: View) = sendSmsSafe("VIDEO")
-    fun sendVideoFront(v: View) = sendSmsSafe("VIDEO:FRONT")
+    fun sendPhotoBack(v: View) = sendSmsNow("PHOTO")
+    fun sendPhotoFront(v: View) = sendSmsNow("PHOTO:FRONT")
+    fun sendVideoBack(v: View) = sendSmsNow("VIDEO")
+    fun sendVideoFront(v: View) = sendSmsNow("VIDEO:FRONT")
 
-    private fun sendSmsSafe(cmd: String) {
+    private fun sendSmsNow(cmd: String) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsDataSafe(num, cmd)
+        sendSmsDataNow(num, cmd)
         tvStatus.text = "⏳ Commande envoyée : $cmd"
     }
 
-    private fun sendSmsDataSafe(num: String, message: String) {
+    private fun sendSmsDataNow(num: String, message: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
             tvStatus.text = "⚠️ Permission SEND_SMS manquante"
