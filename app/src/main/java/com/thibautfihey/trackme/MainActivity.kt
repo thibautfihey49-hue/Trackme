@@ -25,7 +25,7 @@ import android.telephony.SmsMessage
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private val SMS_PORT = 7777 // ✅ Port dédié — SMS INVISIBLE dans la boîte de réception
+    private val SMS_PORT = 7777
     private val SMS_SENT_ACTION = "com.thibautfihey.trackme.SMS_SENT"
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -57,11 +57,21 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("file:///android_asset/index.html")
         checkPermissions()
         
-        // ✅ Récepteur SMS DONNÉES + SMS TEXTE
-        registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
+        // ✅ CORRECTION : Ajout du drapeau RECEIVER_NOT_EXPORTED pour Android 14+
+        val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(smsReceiver, smsFilter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(smsReceiver, smsFilter)
+        }
         
-        // ✅ Récepteur pour statut d'envoi SMS
-        registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT_ACTION))
+        // ✅ CORRECTION : Pareil pour le récepteur d'envoi
+        val sentFilter = IntentFilter(SMS_SENT_ACTION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(smsSentReceiver, sentFilter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(smsSentReceiver, sentFilter)
+        }
     }
 
     private fun checkPermissions() {
@@ -90,9 +100,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================================================
-    // 📡 INTERFACE JAVASCRIPT — APPELÉE DEPUIS LA PAGE WEB
-    // ==================================================
     inner class WebAppInterface(private val context: Context) {
         
         @JavascriptInterface
@@ -120,7 +127,6 @@ class MainActivity : AppCompatActivity() {
                     PendingIntent.FLAG_IMMUTABLE
                 )
                 
-                // ✅ ENVOI PAR SMS DONNÉES SUR LE PORT 7777 — INVISIBLE DANS LA BOÎTE SMS
                 sm.sendDataMessage(
                     destination,
                     null,
@@ -131,7 +137,6 @@ class MainActivity : AppCompatActivity() {
                 )
             } catch (e: Exception) {
                 e.printStackTrace()
-                // 🔴 Si SMS données échoue → basculer sur SMS TEXTE classique
                 fallbackToTextSMS(destination, message)
             }
         }
@@ -152,9 +157,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================================================
-    // ✅ STATUT D'ENVOI SMS
-    // ==================================================
     private val smsSentReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (resultCode == RESULT_OK) {
@@ -169,9 +171,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ==================================================
-    // ✅ RÉCEPTION SMS — DONNÉES + TEXTE
-    // ==================================================
     private val smsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
@@ -190,7 +189,6 @@ class MainActivity : AppCompatActivity() {
                     val from = msg.originatingAddress ?: continue
                     val text = msg.messageBody ?: continue
                     
-                    // ✅ Nettoyer le numéro pour l'affichage
                     val displayFrom = when {
                         from.startsWith("+33") -> "0" + from.substring(3)
                         from.startsWith("+") -> from
