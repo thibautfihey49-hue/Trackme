@@ -1,7 +1,10 @@
 package com.thibautfihey.trackme
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -32,6 +35,28 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var myMarker: Marker
     private lateinit var otherMarker: Marker
 
+    private val smsReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "TRACKME_POS" -> {
+                    val lat = intent.getDoubleExtra("lat", 0.0)
+                    val lon = intent.getDoubleExtra("lon", 0.0)
+                    val from = intent.getStringExtra("from") ?: ""
+                    runOnUiThread { updateOtherPosition(lat, lon); tvStatus.text = "✅ Reçu de $from\n$lat\n$lon" }
+                }
+                "TRACKME_REQ" -> {
+                    val from = intent?.getStringExtra("from") ?: ""
+                    runOnUiThread {
+                        val dest = if (from.startsWith("+")) from else "+$from"
+                        SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
+                            "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8), null, null)
+                        tvStatus.text = "✅ Position envoyée à $from"
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -40,14 +65,12 @@ class MainActivity : AppCompatActivity(), LocationListener {
         tvStatus = findViewById(R.id.tvStatus)
         map = findViewById(R.id.map)
 
-        // 🗺️ CARTE OPTIMISÉE
         Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
         map.controller.setZoom(15.0)
         map.controller.setCenter(GeoPoint(myLat, myLon))
 
-        // Marqueurs
         myMarker = Marker(map)
         myMarker.position = GeoPoint(myLat, myLon)
         myMarker.title = "📍 Ma position"
@@ -56,20 +79,20 @@ class MainActivity : AppCompatActivity(), LocationListener {
         otherMarker = Marker(map)
         otherMarker.position = GeoPoint(0.0, 0.0)
         otherMarker.title = "📍 Autre position"
-        otherMarker.isVisible = false
+        otherMarker.setVisible(false)
         map.overlays.add(otherMarker)
 
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+
+        registerReceiver(smsReceiver, IntentFilter("TRACKME_POS"))
+        registerReceiver(smsReceiver, IntentFilter("TRACKME_REQ"))
 
         tvStatus.text = "✅ PRÊT !\nEntre un numéro (+33...)"
         requestPermissions()
     }
 
     private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            startGPS()
-            return
-        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) { startGPS(); return }
         val needed = mutableListOf<String>()
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -77,8 +100,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             needed.add(Manifest.permission.SEND_SMS)
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECEIVE_SMS)
-        if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 100)
-        else startGPS()
+        if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 100) else startGPS()
     }
 
     override fun onRequestPermissionsResult(rq: Int, p: Array<out String>, res: IntArray) {
@@ -97,9 +119,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         try {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 5f, this)
-        } catch (e: Exception) {
-            tvStatus.text = "⚠️ GPS indisponible"
-        }
+        } catch (e: Exception) { tvStatus.text = "⚠️ GPS indisponible" }
     }
 
     override fun onLocationChanged(location: Location) {
@@ -119,9 +139,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
                 "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8), null, null)
             tvStatus.text = "✅ Envoyé à $num"
-        } catch (e: Exception) {
-            tvStatus.text = "❌ ${e.message}"
-        }
+        } catch (e: Exception) { tvStatus.text = "❌ ${e.message}" }
     }
 
     fun requestPosition(v: View) {
@@ -132,20 +150,17 @@ class MainActivity : AppCompatActivity(), LocationListener {
             SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
                 "DEMANDE".toByteArray(Charsets.UTF_8), null, null)
             tvStatus.text = "⏳ Demande envoyée"
-        } catch (e: Exception) {
-            tvStatus.text = "❌ ${e.message}"
-        }
+        } catch (e: Exception) { tvStatus.text = "❌ ${e.message}" }
     }
 
-    fun updateOtherPosition(lat: Double, lon: Double) {
-        otherLat = lat
-        otherLon = lon
+    private fun updateOtherPosition(lat: Double, lon: Double) {
+        otherLat = lat; otherLon = lon
         otherMarker.position = GeoPoint(lat, lon)
-        otherMarker.isVisible = true
+        otherMarker.setVisible(true)
         map.invalidate()
-        tvStatus.text = "📍 Autre: $lat\n$lon"
     }
 
+    override fun onDestroy() { super.onDestroy(); unregisterReceiver(smsReceiver) }
     override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
     override fun onProviderEnabled(p: String) {}
     override fun onProviderDisabled(p: String) {}
