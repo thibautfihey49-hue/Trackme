@@ -11,19 +11,20 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
+import java.util.concurrent.Executor
 
 class CamService {
     companion object {
         const val TAG = "TrackCam"
         const val CAMERA_BACK = "back"
         const val CAMERA_FRONT = "front"
-        const val VIDEO_DURATION_MS = 15000 // 15 secondes
+        const val VIDEO_DURATION_MS = 15000L
         
-        // ===== PHOTO =====
         fun takePhotoCompressedSync(
             context: Context,
             cameraChoice: String = CAMERA_BACK,
@@ -52,6 +53,10 @@ class CamService {
             var resultBytes: ByteArray? = null
             val lock = Object()
             
+            val thread = HandlerThread("CameraPhoto")
+            thread.start()
+            val handler = Handler(thread.looper)
+            
             camMgr.openCamera(camId, object : CameraDevice.StateCallback() {
                 override fun onOpened(cam: CameraDevice) {
                     try {
@@ -72,7 +77,7 @@ class CamService {
                             cam.close()
                             reader.close()
                             synchronized(lock) { lock.notify() }
-                        }, context.mainExecutor)
+                        }, handler)
                         
                         val surface = reader.surface
                         val req = cam.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
@@ -81,32 +86,14 @@ class CamService {
                             set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                         }
                         
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            cam.createCaptureSession(
-                                listOf(SurfaceConfiguration(surface)),
-                                SessionConfiguration.SESSION_REGULAR,
-                                listOf(surface),
-                                context.mainExecutor,
-                                object : CameraCaptureSession.StateCallback() {
-                                    override fun onConfigured(session: CameraCaptureSession) {
-                                        session.capture(req.build(), null, null)
-                                    }
-                                    override fun onConfigureFailed(p0: CameraCaptureSession) {
-                                        synchronized(lock) { lock.notify() }
-                                    }
-                                }
-                            )
-                        } else {
-                            @Suppress("DEPRECATION")
-                            cam.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
-                                override fun onConfigured(session: CameraCaptureSession) {
-                                    session.capture(req.build(), null, null)
-                                }
-                                override fun onConfigureFailed(p0: CameraCaptureSession) {
-                                    synchronized(lock) { lock.notify() }
-                                }
-                            }, null)
-                        }
+                        cam.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
+                            override fun onConfigured(session: CameraCaptureSession) {
+                                session.capture(req.build(), null, handler)
+                            }
+                            override fun onConfigureFailed(p0: CameraCaptureSession) {
+                                synchronized(lock) { lock.notify() }
+                            }
+                        }, handler)
                     } catch (e: Exception) {
                         Log.e(TAG, "Erreur photo", e)
                         synchronized(lock) { lock.notify() }
@@ -114,13 +101,14 @@ class CamService {
                 }
                 override fun onDisconnected(p0: CameraDevice) { synchronized(lock) { lock.notify() } }
                 override fun onError(p0: CameraDevice, p1: Int) { synchronized(lock) { lock.notify() } }
-            }, null)
+            }, handler)
             
-            synchronized(lock) { lock.wait(20000) }
+            synchronized(lock) { lock.wait(20000L) }
+            thread.quitSafely()
+            
             return resultBytes ?: throw Exception("Échec capture photo")
         }
         
-        // ===== VIDÉO =====
         fun recordVideoSync(
             context: Context,
             cameraChoice: String = CAMERA_BACK,
@@ -152,7 +140,6 @@ class CamService {
             val lock = Object()
             var recordingFailed = false
             
-            // Configuration MediaRecorder
             val recorder = MediaRecorder().apply {
                 setVideoSource(MediaRecorder.VideoSource.SURFACE)
                 setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -188,7 +175,6 @@ class CamService {
                                     recorder.start()
                                     Log.d(TAG, "🎥 Enregistrement démarré")
                                     
-                                    // Arrêter après la durée
                                     Handler(context.mainLooper).postDelayed({
                                         try {
                                             recorder.stop()
@@ -222,17 +208,16 @@ class CamService {
                 override fun onError(p0: CameraDevice, p1: Int) { recordingFailed = true; synchronized(lock) { lock.notify() } }
             }, handler)
             
-            synchronized(lock) { lock.wait(durationMs + 10000) }
+            synchronized(lock) { lock.wait(durationMs + 10000L) }
             thread.quitSafely()
             
-            if (recordingFailed || !videoFile.exists() || videoFile.length() < 1000) {
+            if (recordingFailed || !videoFile.exists() || videoFile.length() < 1000L) {
                 throw Exception("Échec enregistrement vidéo")
             }
             
             return videoFile
         }
         
-        // 🔇 DÉSACTIVER SON ET VIBRATION
         private fun muteSystemSounds(context: Context) {
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
