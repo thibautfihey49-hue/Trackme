@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Environment
 import android.telephony.SmsManager
 import android.view.View
 import android.widget.EditText
@@ -70,13 +69,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         try {
             setContentView(R.layout.activity_main)
+
+            // 🔑 SOLUTION CRUCIALE : Utiliser le DOSSIER INTERNE de l'app
+            // Plus besoin de permissions de stockage externe !
+            val internalCacheDir = File(filesDir, "osmdroid")
+            internalCacheDir.mkdirs()
             
-            // 🔑 CORRECTIF CRUCIAL : Dossier de cache OSMDroid
-            val osmdroidBase = File(getExternalFilesDir(null), "osmdroid")
-            osmdroidBase.mkdirs()
-            Configuration.getInstance().osmdroidBasePath = osmdroidBase
-            Configuration.getInstance().osmdroidTileCache = File(osmdroidBase, "tiles")
-            Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+            val config = Configuration.getInstance()
+            config.osmdroidBasePath = internalCacheDir
+            config.osmdroidTileCache = File(internalCacheDir, "tiles")
+            config.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
 
             etNumber = findViewById(R.id.etNumber)
             tvStatus = findViewById(R.id.tvStatus)
@@ -107,7 +109,7 @@ class MainActivity : AppCompatActivity() {
             requestPermissions()
             
         } catch (e: Exception) {
-            Toast.makeText(this, "ERREUR onCreate: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "ERREUR: ${e.message}", Toast.LENGTH_LONG).show()
             e.printStackTrace()
         }
     }
