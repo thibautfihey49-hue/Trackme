@@ -1,66 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center_horizontal">
-
-    <EditText
-        android:id="@+id/etNumber"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Numéro de téléphone"
-        android:inputType="phone"
-        android:layout_marginBottom="16dp"/>
-
-    <Button
-        android:id="@+id/btnPhotoBack"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="📸 Photo Arrière"
-        android:onClick="sendPhotoBack"
-        android:layout_marginBottom="8dp"/>
-
-    <Button
-        android:id="@+id/btnPhotoFront"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="📸 Photo Avant"
-        android:onClick="sendPhotoFront"
-        android:layout_marginBottom="8dp"/>
-
-    <Button
-        android:id="@+id/btnVideoBack"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="🎥 Vidéo Arrière (15s)"
-        android:onClick="sendVideoBack"
-        android:layout_marginBottom="8dp"/>
-
-    <Button
-        android:id="@+id/btnVideoFront"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="🎥 Vidéo Avant (15s)"
-        android:onClick="sendVideoFront"
-        android:layout_marginBottom="16dp"/>
+    android:background="#F5F5F5"
+    android:padding="16dp">
 
     <TextView
-        android:id="@+id/tvStatus"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Prêt"
-        android:textSize="16sp"
+        android:text="🌐 TRACKME — Suivi GPS par SMS"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="12dp"/>
+
+    <EditText
+        android:id="@+id/etPhoneNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="📞 Numéro de l'autre téléphone"
+        android:inputType="phone"
         android:padding="12dp"
-        android:background="#F0F0F0"
-        android:layout_marginBottom="16dp"/>
+        android:backgroundTint="#2196F3"
+        android:layout_marginBottom="12dp"/>
 
-    <ImageView
-        android:id="@+id/ivPhoto"
+    <TextView
+        android:id="@+id/tvMyLocation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="8dp"/>
+        android:text="📍 Ma position : Non disponible"
+        android:textSize="14sp"
+        android:padding="10dp"
+        android:background="#E3F2FD"
+        android:layout_marginBottom="12dp"/>
 
+    <org.osmdroid.views.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="12dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gap="8dp">
+
+        <Button
+            android:id="@+id/btnRequestPosition"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="📍 Demander la position"
+            android:backgroundTint="#4CAF50"/>
+
+        <Button
+            android:id="@+id/btnSendPosition"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="📤 Envoyer ma position"
+            android:backgroundTint="#2196F3"/>
+
+        <Button
+            android:id="@+id/btnTrack"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="🔄 Suivi automatique (1min30 / 20m)"
+            android:backgroundTint="#FF9800"/>
+    </LinearLayout>
 </LinearLayout>
