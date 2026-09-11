@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources><style name="Theme.TrackMe" parent="Theme.MaterialComponents.DayNight.NoActionBar"><item name="colorPrimary">@color/primary</item><item name="android:statusBarColor">@color/primary</item></style></resources>
+<resources>
+    <style name="Theme.AppCompat.Light.DarkActionBar" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="windowActionBar">true</item>
+        <item name="windowNoTitle">false</item>
+    </style>
+</resources>

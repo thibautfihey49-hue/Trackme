@@ -12,7 +12,6 @@ class SmsReceiverBroadcast : BroadcastReceiver() {
         try {
             context ?: return
             intent ?: return
-
             val messages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 Telephony.Sms.Intents.getMessagesFromIntent(intent)
             } else {
@@ -20,11 +19,9 @@ class SmsReceiverBroadcast : BroadcastReceiver() {
                 val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
                 pdus.map { SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
             }
-
             for (msg in messages) {
                 val from = msg.originatingAddress ?: continue
                 val text = msg.messageBody ?: continue
-
                 when {
                     text.startsWith("POS:") -> {
                         val parts = text.removePrefix("POS:").split(",")
@@ -47,8 +44,6 @@ class SmsReceiverBroadcast : BroadcastReceiver() {
                     }
                 }
             }
-        } catch (e: Exception) {
-            // Silence — jamais crasher
-        }
+        } catch (_: Exception) {}
     }
 }

@@ -3,16 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp"
-    android:background="#F5F5F5">
+    android:background="#FFFFFF">
 
     <EditText
         android:id="@+id/etNumber"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Numéro (ex: +336...)"
+        android:hint="Numéro (+336...)"
         android:inputType="phone"
-        android:layout_marginBottom="8dp"/>
+        android:layout_margin="8dp"/>
 
     <TextView
         android:id="@+id/tvStatus"
@@ -20,36 +19,36 @@
         android:layout_height="wrap_content"
         android:text="✅ Démarrage..."
         android:padding="12dp"
+        android:layout_margin="8dp"
         android:background="#E8F5E9"
-        android:textColor="#2E7D32"
-        android:layout_marginBottom="8dp"/>
+        android:textColor="#2E7D32"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_margin="8dp">
 
         <Button
-            android:id="@+id/sendMyPosition"
+            android:id="@+id/btnSend"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="📍 Envoyer ma position"
+            android:text="📍 Envoyer"
             android:onClick="sendMyPosition"
             android:layout_marginEnd="4dp"
-            android:background="#2196F3"
+            android:backgroundTint="#2196F3"
             android:textColor="#FFFFFF"/>
 
         <Button
-            android:id="@+id/requestPosition"
+            android:id="@+id/btnReq"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="📥 Demander position"
+            android:text="📥 Demander"
             android:onClick="requestPosition"
             android:layout_marginStart="4dp"
-            android:background="#FF9800"
+            android:backgroundTint="#FF9800"
             android:textColor="#FFFFFF"/>
     </LinearLayout>
 
@@ -57,6 +56,7 @@
         android:id="@+id/map"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:layout_margin="8dp"/>
 
 </LinearLayout>

@@ -12,7 +12,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="TrackMe"
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -29,6 +29,6 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
-        
+
     </application>
 </manifest>
