@@ -42,8 +42,8 @@ class MainActivity : AppCompatActivity(), LocationListener {
         val allGranted = permissions.all { it.value }
         if (allGranted) {
             tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
-            initMap()
-            startLocationUpdates()
+            initMapSafe()
+            startLocationUpdatesSafe()
         } else {
             tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
         }
@@ -85,7 +85,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLocation = GeoPoint(lat, lon)
-                updateOtherMarker()
+                updateOtherMarkerSafe()
                 tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
             }
         }
@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onRequestReceived = { from ->
             runOnUiThread {
                 currentLocation?.let {
-                    sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
+                    sendSmsDataSafe(from, "POSITION:${it.latitude},${it.longitude}")
                     tvStatus.text = "✅ Position envoyée à $from"
                 } ?: run {
                     tvStatus.text = "⚠️ Position pas encore disponible"
@@ -130,17 +130,17 @@ class MainActivity : AppCompatActivity(), LocationListener {
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
-            initMap()
-            startLocationUpdates()
+            initMapSafe()
+            startLocationUpdatesSafe()
         }
     }
 
-    private fun initMap() {
+    private fun initMapSafe() {
         val startPoint = GeoPoint(47.47, -0.55)
         mapController.setCenter(startPoint)
     }
 
-    private fun startLocationUpdates() {
+    private fun startLocationUpdatesSafe() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             try {
                 locationManager.requestLocationUpdates(
@@ -159,10 +159,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onLocationChanged(location: Location) {
         currentLocation = GeoPoint(location.latitude, location.longitude)
-        updateMyMarker()
+        updateMyMarkerSafe()
     }
 
-    private fun updateMyMarker() {
+    private fun updateMyMarkerSafe() {
         currentLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "my_position" }
             val marker = Marker(map)
@@ -176,7 +176,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
-    private fun updateOtherMarker() {
+    private fun updateOtherMarkerSafe() {
         otherLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "other_position" }
             val marker = Marker(map)
@@ -196,7 +196,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             return
         }
         currentLocation?.let {
-            sendSmsData(num, "POSITION:${it.latitude},${it.longitude}")
+            sendSmsDataSafe(num, "POSITION:${it.latitude},${it.longitude}")
             tvStatus.text = "✅ Position envoyée !"
         } ?: run {
             tvStatus.text = "⚠️ Position GPS non disponible encore"
@@ -209,26 +209,26 @@ class MainActivity : AppCompatActivity(), LocationListener {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsData(num, "REQUEST_POSITION")
+        sendSmsDataSafe(num, "REQUEST_POSITION")
         tvStatus.text = "⏳ Demande de position envoyée..."
     }
 
-    fun sendPhotoBack(v: View) = sendSms("PHOTO")
-    fun sendPhotoFront(v: View) = sendSms("PHOTO:FRONT")
-    fun sendVideoBack(v: View) = sendSms("VIDEO")
-    fun sendVideoFront(v: View) = sendSms("VIDEO:FRONT")
+    fun sendPhotoBack(v: View) = sendSmsSafe("PHOTO")
+    fun sendPhotoFront(v: View) = sendSmsSafe("PHOTO:FRONT")
+    fun sendVideoBack(v: View) = sendSmsSafe("VIDEO")
+    fun sendVideoFront(v: View) = sendSmsSafe("VIDEO:FRONT")
 
-    private fun sendSms(cmd: String) {
+    private fun sendSmsSafe(cmd: String) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsData(num, cmd)
+        sendSmsDataSafe(num, cmd)
         tvStatus.text = "⏳ Commande envoyée : $cmd"
     }
 
-    private fun sendSmsData(num: String, message: String) {
+    private fun sendSmsDataSafe(num: String, message: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
             tvStatus.text = "⚠️ Permission SEND_SMS manquante"
