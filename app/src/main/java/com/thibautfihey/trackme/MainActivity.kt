@@ -24,7 +24,11 @@ import android.telephony.SmsMessage
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var webView: WebView
+    companion object {
+        lateinit var webView: WebView
+            private set
+    }
+
     private val SMS_PORT = 7777
     private val SMS_SENT_ACTION = "com.thibautfihey.trackme.SMS_SENT"
 
@@ -32,20 +36,20 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        webView = WebView(this)
-        setContentView(webView)
+        MainActivity.webView = WebView(this)
+        setContentView(MainActivity.webView)
 
-        webView.settings.apply {
+        MainActivity.webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             allowFileAccess = true
             setGeolocationEnabled(true)
         }
         
-        webView.addJavascriptInterface(WebAppInterface(this), "Android")
-        webView.webViewClient = object : WebViewClient() {}
+        MainActivity.webView.addJavascriptInterface(WebAppInterface(this), "Android")
+        MainActivity.webView.webViewClient = object : WebViewClient() {}
         
-        webView.webChromeClient = object : WebChromeClient() {
+        MainActivity.webView.webChromeClient = object : WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(
                 origin: String,
                 callback: GeolocationPermissions.Callback
@@ -54,10 +58,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        webView.loadUrl("file:///android_asset/index.html")
+        MainActivity.webView.loadUrl("file:///android_asset/index.html")
         checkPermissions()
         
-        // ✅ CORRECTION : Ajout du drapeau RECEIVER_NOT_EXPORTED pour Android 14+
+        // ✅ RÉCEPTEUR DES SMS
         val smsFilter = IntentFilter("android.provider.Telephony.SMS_RECEIVED")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(smsReceiver, smsFilter, RECEIVER_NOT_EXPORTED)
@@ -65,12 +69,36 @@ class MainActivity : AppCompatActivity() {
             registerReceiver(smsReceiver, smsFilter)
         }
         
-        // ✅ CORRECTION : Pareil pour le récepteur d'envoi
         val sentFilter = IntentFilter(SMS_SENT_ACTION)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(smsSentReceiver, sentFilter, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(smsSentReceiver, sentFilter)
+        }
+        
+        // ✅ RÉCEPTEUR DES MISES À JOUR DE POSITION DU SERVICE
+        val positionFilter = IntentFilter(TrackerService.ACTION_POSITION_UPDATE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(positionUpdateReceiver, positionFilter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(positionUpdateReceiver, positionFilter)
+        }
+    }
+
+    // ✅ RECEVOIR LA POSITION DU SERVICE ET L'ENVOYER À LA WEBVIEW
+    private val positionUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent ?: return
+            val lat = intent.getDoubleExtra(TrackerService.EXTRA_LAT, 0.0)
+            val lon = intent.getDoubleExtra(TrackerService.EXTRA_LON, 0.0)
+            val acc = intent.getFloatExtra(TrackerService.EXTRA_ACC, 0f)
+            
+            if (lat != 0.0 && lon != 0.0) {
+                runOnUiThread {
+                    val js = "mettreAJourPosition($lat, $lon, $acc)"
+                    webView.evaluateJavascript(js, null)
+                }
+            }
         }
     }
 
@@ -84,6 +112,12 @@ class MainActivity : AppCompatActivity() {
             needed.add(Manifest.permission.READ_SMS)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE) != PackageManager.PERMISSION_GRANTED)
+            needed.add(Manifest.permission.FOREGROUND_SERVICE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+                needed.add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+        }
 
         if (needed.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
@@ -101,6 +135,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     inner class WebAppInterface(private val context: Context) {
+        
+        @JavascriptInterface
+        fun demarrerService() {
+            val intent = Intent(context, TrackerService::class.java)
+            intent.action = TrackerService.ACTION_START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            Toast.makeText(context, "✅ Service de suivi DÉMARRÉ — Tourne en arrière-plan", Toast.LENGTH_SHORT).show()
+        }
+
+        @JavascriptInterface
+        fun arreterService() {
+            val intent = Intent(context, TrackerService::class.java)
+            intent.action = TrackerService.ACTION_STOP
+            context.startService(intent)
+            Toast.makeText(context, "⏹️ Service arrêté", Toast.LENGTH_SHORT).show()
+        }
         
         @JavascriptInterface
         fun sendPositionSMS(destination: String, latitude: Double, longitude: Double) {
@@ -210,5 +264,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         unregisterReceiver(smsReceiver)
         unregisterReceiver(smsSentReceiver)
+        unregisterReceiver(positionUpdateReceiver)
     }
 }

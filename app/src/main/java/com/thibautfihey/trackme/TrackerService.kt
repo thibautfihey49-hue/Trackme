@@ -23,6 +23,10 @@ class TrackerService : Service() {
         const val NOTIFICATION_ID = 1337
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_POSITION_UPDATE = "com.thibautfihey.trackme.POSITION_UPDATE"
+        const val EXTRA_LAT = "latitude"
+        const val EXTRA_LON = "longitude"
+        const val EXTRA_ACC = "accuracy"
         const val TAG = "TrackMeService"
         
         var isRunning = false
@@ -35,10 +39,14 @@ class TrackerService : Service() {
             lastLocation = location
             Log.d(TAG, "📍 Position: ${location.latitude}, ${location.longitude} — Précision: ${location.accuracy}m")
             
-            MainActivity.webView?.let { webView ->
-                val js = "if(typeof mettreAJourPosition === 'function') mettreAJourPosition(${location.latitude}, ${location.longitude}, ${location.accuracy})"
-                webView.evaluateJavascript(js, null)
+            // ✅ ENVOYER LA POSITION PAR BROADCAST — au lieu d'accéder directement à webView
+            val intent = Intent(ACTION_POSITION_UPDATE).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_LAT, location.latitude)
+                putExtra(EXTRA_LON, location.longitude)
+                putExtra(EXTRA_ACC, location.accuracy)
             }
+            sendBroadcast(intent)
         }
 
         override fun onProviderEnabled(provider: String) {}
@@ -59,38 +67,30 @@ class TrackerService : Service() {
             ACTION_START -> startTracking()
             ACTION_STOP -> stopTracking()
         }
-        return START_STICKY // ✅ Si système le tue → IL REDÉMARRE TOUT SEUL
+        return START_STICKY
     }
 
     private fun startTracking() {
         try {
-            // ✅ VÉRIFICATION DES PERMISSIONS — ÉVITE LES CRASH
             if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                
-                // ✅ GPS — Màj toutes les 30s ou si déplacement de 10m
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
-                    30000,        // ⏱️ Intervalle min (ms)
-                    10f,          // 📍 Distance min (m)
+                    30000,
+                    10f,
                     locationListener
                 )
-                
-                // ✅ Réseau — Si GPS faible ou indisponible
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
-                    30000,        // ⏱️ Intervalle min (ms)
-                    10f,          // 📍 Distance min (m)
+                    30000,
+                    10f,
                     locationListener
                 )
                 Log.d(TAG, "✅ GPS + Réseau ACTIF — Màj toutes 30s / 10m")
             } else {
                 Log.e(TAG, "❌ Permission GPS non accordée !")
             }
-            
-            // ✅ Mettre en PREMIÈRE PLAN → SYSTÈME NE PEUT PAS LE TUER
             startForeground(NOTIFICATION_ID, createNotification())
             Log.d(TAG, "✅ Service en PREMIÈRE PLAN — Protégé")
-            
         } catch (e: Exception) {
             Log.e(TAG, "❌ Erreur démarrage GPS", e)
         }
@@ -138,7 +138,7 @@ class TrackerService : Service() {
             .setContentText("Suivi GPS en cours — Tourne en arrière-plan")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
-            .setOngoing(true) // ✅ IMPOSSIBLE DE SUPPRIMER PAR ERREUR
+            .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(Notification.CATEGORY_SERVICE)
