@@ -1,20 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="16dp" android:background="#F5F5F5">
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="🔵 TrackMe v7 — SMS Invisible" android:textSize="20sp" android:textStyle="bold" android:layout_gravity="center" android:layout_marginBottom="16dp"/>
-    <EditText android:id="@+id/etPhoneNumber" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:hint="📞 Numéro de l'autre" android:inputType="phone" android:padding="12dp" android:layout_marginBottom="12dp"/>
-    <org.osmdroid.views.MapView android:id="@+id/mapView" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginBottom="12dp"/>
-    <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="✅ Prêt" android:padding="12dp" android:background="#E8F5E9" android:textAlignment="center" android:layout_marginBottom="12dp"/>
-    <TextView android:id="@+id/tvMyLocation" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="📍 Ma position : en attente..." android:padding="8dp" android:background="#E3F2FD" android:textSize="12sp" android:layout_marginBottom="12dp"/>
-    <Button android:id="@+id/btnRequestPosition" android:layout_width="match_parent" android:layout_height="55dp"
-        android:text="📥 Demander position" android:backgroundTint="#4CAF50" android:layout_marginBottom="8dp"/>
-    <Button android:id="@+id/btnSendPosition" android:layout_width="match_parent" android:layout_height="55dp"
-        android:text="📤 Envoyer ma position" android:backgroundTint="#2196F3" android:layout_marginBottom="8dp"/>
-    <Button android:id="@+id/btnTrack" android:layout_width="match_parent" android:layout_height="55dp"
-        android:text="🔄 Suivre 1 min" android:backgroundTint="#FF9800"/>
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal">
+
+    <EditText
+        android:id="@+id/etNumber"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Numéro de téléphone"
+        android:inputType="phone"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnPhotoBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📸 Photo Arrière"
+        android:onClick="sendPhotoBack"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnPhotoFront"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📸 Photo Avant"
+        android:onClick="sendPhotoFront"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnVideoBack"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎥 Vidéo Arrière (15s)"
+        android:onClick="sendVideoBack"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnVideoFront"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎥 Vidéo Avant (15s)"
+        android:onClick="sendVideoFront"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Prêt"
+        android:textSize="16sp"
+        android:padding="12dp"
+        android:background="#F0F0F0"
+        android:layout_marginBottom="16dp"/>
+
+    <ImageView
+        android:id="@+id/ivPhoto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"/>
+
 </LinearLayout>
