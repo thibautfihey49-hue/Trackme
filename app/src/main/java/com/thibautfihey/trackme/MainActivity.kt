@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsManager
 import android.webkit.JavascriptInterface
-import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -25,7 +24,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private val smsReceiver = SmsReceiver()
-    private var permissionsReady = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,35 +36,20 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             allowFileAccess = true
-            mediaPlaybackRequiresUserGesture = false
             setGeolocationEnabled(true)
         }
         
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
-        
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                if (permissionsReady) {
-                    webView.evaluateJavascript("""setTimeout(() => {
-                        if (navigator.geolocation) {
-                            console.log("GPS disponible");
-                        } else {
-                            alert("GPS non supporté");
-                        }
-                    }, 500);""", null)
-                }
-            }
-        }
-        
+        webView.webViewClient = object : WebViewClient() {}
         webView.webChromeClient = object : WebChromeClient() {
-            override fun onPermissionRequest(request: PermissionRequest?) {
+            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && request != null) {
                     request.grant(request.resources)
                 }
             }
         }
 
+        webView.loadUrl("file:///android_asset/index.html")
         checkPermissions()
         registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
     }
@@ -75,8 +58,6 @@ class MainActivity : AppCompatActivity() {
         val needed = mutableListOf<String>()
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-            needed.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.SEND_SMS)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
@@ -86,9 +67,6 @@ class MainActivity : AppCompatActivity() {
 
         if (needed.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
-        } else {
-            permissionsReady = true
-            loadWeb()
         }
     }
 
@@ -97,21 +75,9 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100) {
-            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            if (allGranted) {
-                Toast.makeText(this, "✅ Toutes les permissions accordées", Toast.LENGTH_SHORT).show()
-                permissionsReady = true
-                loadWeb()
-            } else {
-                Toast.makeText(this, "⚠️ Certaines permissions sont manquantes", Toast.LENGTH_LONG).show()
-                permissionsReady = true
-                loadWeb()
-            }
+            val ok = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            Toast.makeText(this, if(ok) "✅ Permissions OK" else "⚠️ Certaines permissions manquent", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun loadWeb() {
-        webView.loadUrl("file:///android_asset/index.html")
     }
 
     class WebAppInterface(private val context: Context) {
@@ -119,14 +85,7 @@ class MainActivity : AppCompatActivity() {
         fun sendDataSMS(destination: String, port: Int, message: String) {
             try {
                 val sm = SmsManager.getDefault()
-                sm.sendDataMessage(
-                    destination,
-                    null,
-                    port.toShort(),
-                    message.toByteArray(Charsets.UTF_8),
-                    null,
-                    null
-                )
+                sm.sendDataMessage(destination, null, port.toShort(), message.toByteArray(Charsets.UTF_8), null, null)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -144,16 +103,14 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     @Suppress("DEPRECATION")
                     val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
-                    pdus.map { android.telephony.SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
+                    pdus.map { SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
                 }
 
                 for (msg in messages) {
                     val from = msg.originatingAddress ?: continue
                     val text = msg.messageBody ?: continue
-                    
                     val safeFrom = from.replace("'", "\\'")
                     val safeText = text.replace("'", "\\'")
-                    
                     runOnUiThread {
                         webView.evaluateJavascript("receiveSMS('$safeFrom', '$safeText')", null)
                     }

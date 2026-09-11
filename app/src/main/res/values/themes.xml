@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.TrackMe" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">#1a73e8</item>
-        <item name="colorPrimaryDark">#1557b0</item>
-        <item name="colorAccent">#34a853</item>
-    </style>
-</resources>

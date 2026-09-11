@@ -2,48 +2,29 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TrackMe — GPS Précis</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-        body { background: #f0f4f8; padding: 12px; max-width: 500px; margin: 0 auto; }
-        h1 { text-align: center; color: #1a73e8; margin-bottom: 12px; font-size: 22px; }
-        
-        .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-        
-        input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; margin-bottom: 10px; }
-        input:focus { outline: none; border-color: #1a73e8; }
-        
-        button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px 0; transition: opacity 0.2s; }
-        button:active { opacity: 0.85; }
-        
-        .btn-blue { background: #1a73e8; color: white; }
-        .btn-green { background: #34a853; color: white; }
-        .btn-orange { background: #fa7b17; color: white; }
-        .btn-red { background: #ea4335; color: white; }
-        .btn-purple { background: #8e24aa; color: white; }
-        
-        #status { padding: 12px; border-radius: 10px; background: #e6f4ea; color: #137333; margin: 8px 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
-        .status-wait { background: #fef7e0; color: #804b00; }
-        .status-err { background: #fce8e6; color: #c5221f; }
-        
-        #map { height: 380px; border-radius: 12px; margin-top: 10px; z-index: 1; }
-        
-        .coords-box { background: #f8f9fa; padding: 12px; border-radius: 10px; margin-top: 10px; font-size: 13px; line-height: 1.8; }
-        .coord-label { font-weight: 600; color: #5f6368; display: inline-block; width: 100px; }
-        .coord-val { font-family: 'SF Mono', Consolas, monospace; color: #1a73e8; font-size: 14px; }
-        .precision { font-size: 12px; color: #5f6368; margin-top: 4px; }
-        .precision-good { color: #34a853; font-weight: 500; }
-        .precision-medium { color: #f9ab00; font-weight: 500; }
-        .precision-bad { color: #ea4335; font-weight: 500; }
-        
-        .live-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #999; margin-right: 6px; }
-        .live-indicator.active { background: #34a853; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,168,83,0.4); } 70% { box-shadow: 0 0 0 8px rgba(52,168,83,0); } 100% { box-shadow: 0 0 0 0 rgba(52,168,83,0); } }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackMe</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui; }
+        body { padding:16px; background:#f5f5f5; max-width:500px; margin:0 auto; }
+        h1 { text-align:center; color:#1a73e8; margin-bottom:16px; }
+        .card { background:white; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        input { width:100%; padding:14px; border:2px solid #ddd; border-radius:8px; font-size:16px; margin-bottom:10px; }
+        button { width:100%; padding:14px; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin:4px 0; }
+        .btn-green { background:#34a853; color:white; }
+        .btn-blue { background:#1a73e8; color:white; }
+        .btn-orange { background:#fa7b17; color:white; }
+        .btn-red { background:#ea4335; color:white; }
+        #status { padding:12px; border-radius:8px; background:#e6f4ea; color:#137333; margin:8px 0; white-space:pre-wrap; }
+        .status-err { background:#fce8e6; color:#c5221f; }
+        #map { height:350px; border-radius:8px; margin-top:10px; }
+        .coords { margin-top:12px; font-size:14px; line-height:1.8; background:#f8f9fa; padding:12px; border-radius:8px; }
+        .dot { display:inline-block; width:12px; height:12px; border-radius:50%; background:#999; margin-right:8px; }
+        .dot.active { background:#34a853; animation:pulse 2s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(52,168,83,0.4);} 70%{box-shadow:0 0 0 8px rgba(52,168,83,0);} 100%{box-shadow:0 0 0 0 rgba(52,168,83,0);} }
+    </style>
 </head>
 <body>
 
@@ -52,262 +33,171 @@
 <div class="card">
     <input type="tel" id="num" placeholder="Numéro (ex: 0612345678)">
     
-    <div id="status">⏳ En attente de permission GPS...</div>
+    <div id="status">⏳ Prêt — Clique sur Activer GPS</div>
     
-    <button class="btn-purple" onclick="requestPermission()">🔑 Accorder la permission GPS</button>
-    <button class="btn-green" id="btnStartGPS" onclick="startGPS()">
-        <span class="live-indicator" id="gpsDot"></span>
-        📡 Activer GPS en temps réel
+    <button class="btn-green" onclick="startGPS()">
+        <span class="dot" id="gpsDot"></span> 📡 Activer GPS
     </button>
-    <button class="btn-blue" onclick="centerOnMe()">🎯 Centrer sur ma position</button>
+    <button class="btn-blue" onclick="centerOnMe()">🎯 Centrer sur moi</button>
     <button class="btn-green" onclick="sendPos()">📤 Partager ma position</button>
     <button class="btn-orange" onclick="askPos()">📥 Demander position</button>
-    <button class="btn-red" onclick="stopGPS()">⏹️ Arrêter le GPS</button>
+    <button class="btn-red" onclick="stopGPS()">⏹️ Arrêter GPS</button>
     
-    <div class="coords-box">
-        <div><span class="coord-label">Moi :</span> <span class="coord-val" id="myCoords">—</span></div>
-        <div><span class="coord-label">Précision :</span> <span class="coord-val" id="myAccuracy">—</span> <span id="accClass" class="precision"></span></div>
-        <div><span class="coord-label">Autre :</span> <span class="coord-val" id="otherCoords">—</span></div>
-        <div><span class="coord-label">Distance :</span> <span class="coord-val" id="distance">—</span></div>
+    <div class="coords">
+        <div><strong>Moi:</strong> <span id="myCoords">—</span></div>
+        <div><strong>Précision:</strong> <span id="myAcc">—</span></div>
+        <div><strong>Autre:</strong> <span id="otherCoords">—</span></div>
+        <div><strong>Distance:</strong> <span id="distance">—</span></div>
     </div>
     
     <div id="map"></div>
 </div>
 
 <script>
-let myLat = null;
-let myLon = null;
-let myAccuracy = null;
-let otherLat = null;
-let otherLon = null;
-let map, myMarker, otherMarker, accuracyCircle;
+let myLat = null, myLon = null, myAcc = null;
+let otherLat = null, otherLon = null;
+let map, myMarker, otherMarker, accCircle;
 let watchId = null;
-let followMe = true;
-let gpsReady = false;
 
-// Initialisation carte
 function initMap() {
-    map = L.map('map', { zoomControl: true }).setView([47.4764, -0.5515], 14);
-    
+    map = L.map('map').setView([47.4764, -0.5515], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap',
-        detectRetina: true
+        maxZoom:19, attribution:'© OpenStreetMap'
     }).addTo(map);
     
     const myIcon = L.divIcon({
-        className: 'my-location-icon',
-        html: '<div style="width:24px;height:24px;background:#1a73e8;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:8px;height:8px;background:white;border-radius:50%;"></div></div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        className:'', html:'<div style="width:24px;height:24px;background:#1a73e8;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
+        iconSize:[24,24], iconAnchor:[12,12]
     });
-    myMarker = L.marker([47.4764, -0.5515], { icon: myIcon, zIndexOffset: 1000 }).addTo(map);
+    myMarker = L.marker([47.4764, -0.5515], {icon:myIcon, zIndexOffset:1000}).addTo(map);
     
-    accuracyCircle = L.circle([47.4764, -0.5515], {
-        color: '#1a73e8',
-        fillColor: '#1a73e8',
-        fillOpacity: 0.12,
-        weight: 1,
-        opacity: 0.3,
-        radius: 50
-    }).addTo(map);
+    accCircle = L.circle([47.4764, -0.5515], {color:'#1a73e8', fillColor:'#1a73e8', fillOpacity:0.12, radius:50}).addTo(map);
     
     const otherIcon = L.divIcon({
-        className: 'other-location-icon',
-        html: '<div style="width:24px;height:24px;background:#ea4335;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        className:'', html:'<div style="width:24px;height:24px;background:#ea4335;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
+        iconSize:[24,24], iconAnchor:[12,12]
     });
-    otherMarker = L.marker([0, 0], { icon: otherIcon, opacity: 0 }).addTo(map);
-
-    setStatus("🔑 Étape 1 : Clique sur le bouton VIOLET 'Accorder la permission GPS'");
+    otherMarker = L.marker([0,0], {icon:otherIcon, opacity:0}).addTo(map);
 }
 
-// 🔑 DEMANDER LA PERMISSION EXPLICITEMENT
-function requestPermission() {
-    setStatus("⏳ Demande de permission...", "status-wait");
-    
-    if (typeof Android !== 'undefined' && Android.requestPermission) {
-        Android.requestPermission();
-    }
-    
-    // Essayer de lancer le GPS directement pour déclencher la popup
-    if (!navigator.geolocation) {
-        setStatus("❌ GPS non supporté sur cet appareil", "status-err");
-        return;
-    }
-    
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            setStatus("✅ Permission GPS ACCORDÉE !\n→ Clique maintenant sur 'Activer GPS en temps réel'");
-        },
-        (err) => {
-            if (err.code === err.PERMISSION_DENIED) {
-                setStatus("❌ Permission REFUSÉE !\n→ Va dans :\nParamètres → Applications → TrackMe → Autorisations → Localisation\n→ Sélectionne : 'Autoriser seulement lorsque l'appli est utilisée'\n→ Active aussi 'Position exacte'", "status-err");
-            } else {
-                setStatus("⚠️ Permission demandée. Réessaie.", "status-wait");
-            }
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-}
-
-// 📡 ACTIVER GPS
 function startGPS() {
-    if (!navigator.geolocation) {
-        setStatus("❌ GPS non supporté", "status-err");
+    if(!navigator.geolocation) {
+        setStatus("❌ GPS non supporté", true);
         return;
     }
-    
-    setStatus("⏳ Recherche de position... Sors à l'extérieur si possible !", "status-wait");
+    setStatus("⏳ Recherche GPS... Sors à l'extérieur !");
     document.getElementById('gpsDot').classList.remove('active');
     
-    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if(watchId !== null) navigator.geolocation.clearWatch(watchId);
     
     watchId = navigator.geolocation.watchPosition(
-        // ✅ SUCCÈS
         (pos) => {
             myLat = pos.coords.latitude;
             myLon = pos.coords.longitude;
-            myAccuracy = pos.coords.accuracy;
-            gpsReady = true;
+            myAcc = pos.coords.accuracy;
             
-            document.getElementById('myCoords').textContent = 
-                `${myLat.toFixed(6)}°, ${myLon.toFixed(6)}°`;
-            
-            let accClass, accText;
-            if (myAccuracy <= 10) {
-                accClass = "precision-good"; accText = "✅ Excellent (" + Math.round(myAccuracy) + "m)";
-            } else if (myAccuracy <= 30) {
-                accClass = "precision-medium"; accText = "⚠️ Bonne (" + Math.round(myAccuracy) + "m)";
-            } else {
-                accClass = "precision-bad"; accText = "❌ Faible (" + Math.round(myAccuracy) + "m)";
-            }
-            document.getElementById('myAccuracy').textContent = Math.round(myAccuracy) + " m";
-            document.getElementById('accClass').innerHTML = accText;
-            document.getElementById('accClass').className = "precision " + accClass;
+            document.getElementById('myCoords').textContent = myLat.toFixed(6) + ", " + myLon.toFixed(6);
+            document.getElementById('myAcc').textContent = Math.round(myAcc) + " mètres";
             
             myMarker.setLatLng([myLat, myLon]);
-            accuracyCircle.setLatLng([myLat, myLon]);
-            accuracyCircle.setRadius(myAccuracy);
+            accCircle.setLatLng([myLat, myLon]);
+            accCircle.setRadius(myAcc);
+            map.setView([myLat, myLon], 17);
             
-            if (followMe) map.setView([myLat, myLon], 17);
-            if (otherLat && otherLon) updateDistance();
+            if(otherLat && otherLon) updateDistance();
             
             document.getElementById('gpsDot').classList.add('active');
-            setStatus("✅ GPS ACTIF !\n📍 " + myLat.toFixed(6) + ", " + myLon.toFixed(6) + "\n🎯 Précision: " + Math.round(myAccuracy) + "m");
+            setStatus("✅ GPS OK ! Précision: " + Math.round(myAcc) + "m");
         },
-        // ❌ ERREUR
         (err) => {
             let msg;
-            switch(err.code) {
-                case err.PERMISSION_DENIED: 
-                    msg = "❌ Permission GPS REFUSÉE !\n→ Va dans Paramètres → Applications → TrackMe → Autorisations → Localisation\n→ Sélectionne : 'Autoriser seulement lorsque l'appli est utilisée'"; 
-                    break;
-                case err.POSITION_UNAVAILABLE: 
-                    msg = "⚠️ Position indisponible !\n→ Active le GPS de ton téléphone\n→ Sors à l'extérieur (le GPS ne marche presque pas à l'intérieur)\n→ Patiente 30 secondes"; 
-                    break;
-                case err.TIMEOUT: 
-                    msg = "⏳ GPS trop lent...\n→ Sors à l'extérieur\n→ Active le mode 'Haute précision' dans les paramètres de localisation"; 
-                    break;
-                default: 
-                    msg = "❌ Erreur GPS: " + err.message;
-            }
-            setStatus(msg, "status-err");
+            if(err.code === err.PERMISSION_DENIED)
+                msg = "❌ Permission refusée !\n→ Va dans Paramètres → Applications → TrackMe → Autorisations → Localisation → Autoriser seulement quand utilisée";
+            else if(err.code === err.POSITION_UNAVAILABLE)
+                msg = "⚠️ GPS indisponible !\n→ Active le GPS de ton téléphone\n→ Sors à l'extérieur et patiente 30s";
+            else if(err.code === err.TIMEOUT)
+                msg = "⏳ GPS trop lent...\n→ Sors dehors et réessaie";
+            else
+                msg = "❌ Erreur: " + err.message;
+            setStatus(msg, true);
             document.getElementById('gpsDot').classList.remove('active');
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+        {enableHighAccuracy:true, maximumAge:0, timeout:30000}
     );
 }
 
 function centerOnMe() {
-    if (!gpsReady) { setStatus("⚠️ GPS pas encore prêt... Attends la position !", "status-wait"); return; }
-    followMe = true;
+    if(!myLat) { setStatus("⚠️ GPS pas encore prêt", true); return; }
     map.setView([myLat, myLon], 17);
     setStatus("🎯 Centré sur ma position");
 }
 
 function stopGPS() {
-    if (watchId !== null) {
+    if(watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        gpsReady = false;
         document.getElementById('gpsDot').classList.remove('active');
         setStatus("⏹️ GPS arrêté");
     }
 }
 
 function sendPos() {
-    if (!gpsReady) { setStatus("⚠️ GPS pas encore prêt... Attends la position !", "status-wait"); return; }
+    if(!myLat) { setStatus("⚠️ GPS pas encore prêt", true); return; }
+    let num = document.getElementById('num').value.trim().replace(/\s/g,'');
+    if(!num) { setStatus("⚠️ Entre un numéro", true); return; }
     
-    let num = document.getElementById('num').value.trim().replace(/\s/g, '');
-    if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
+    let dest = num.startsWith('0') ? '+33' + num.substring(1) : num;
+    if(!dest.startsWith('+')) dest = '+' + dest;
     
-    let dest = num;
-    if (num.startsWith('0')) dest = '+33' + num.substring(1);
-    else if (!num.startsWith('+')) dest = '+' + num;
-    
-    const msg = `POS:${myLat.toFixed(6)},${myLon.toFixed(6)}`;
+    const msg = "POS:" + myLat.toFixed(6) + "," + myLon.toFixed(6);
     
     try {
-        if (typeof Android !== 'undefined' && Android.sendDataSMS) {
+        if(typeof Android !== 'undefined' && Android.sendDataSMS) {
             Android.sendDataSMS(dest, 7777, msg);
-            setStatus("✅ Position envoyée à " + dest + "\nPrécision: " + Math.round(myAccuracy) + "m");
+            setStatus("✅ Envoyé à " + dest);
         } else {
-            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-            setStatus("📱 Appuyez sur ENVOYER dans SMS");
+            window.location.href = "sms:" + dest + "?body=" + encodeURIComponent(msg);
+            setStatus("📱 Appuie sur ENVOYER dans SMS");
         }
     } catch(e) {
-        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-        setStatus("📱 Appuyez sur ENVOYER dans SMS");
+        window.location.href = "sms:" + dest + "?body=" + encodeURIComponent(msg);
     }
 }
 
 function askPos() {
-    let num = document.getElementById('num').value.trim().replace(/\s/g, '');
-    if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
+    let num = document.getElementById('num').value.trim().replace(/\s/g,'');
+    if(!num) { setStatus("⚠️ Entre un numéro", true); return; }
     
-    let dest = num;
-    if (num.startsWith('0')) dest = '+33' + num.substring(1);
-    else if (!num.startsWith('+')) dest = '+' + num;
-    
-    const msg = "DEMANDE";
+    let dest = num.startsWith('0') ? '+33' + num.substring(1) : num;
+    if(!dest.startsWith('+')) dest = '+' + dest;
     
     try {
-        if (typeof Android !== 'undefined' && Android.sendDataSMS) {
-            Android.sendDataSMS(dest, 7777, msg);
-            setStatus("⏳ Demande envoyée à " + dest + " — en attente...");
+        if(typeof Android !== 'undefined' && Android.sendDataSMS) {
+            Android.sendDataSMS(dest, 7777, "DEMANDE");
+            setStatus("⏳ Demande envoyée à " + dest);
         } else {
-            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-            setStatus("📱 Appuyez sur ENVOYER dans SMS");
+            window.location.href = "sms:" + dest + "?body=DEMANDE";
+            setStatus("📱 Appuie sur ENVOYER dans SMS");
         }
     } catch(e) {
-        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-        setStatus("📱 Appuyez sur ENVOYER dans SMS");
+        window.location.href = "sms:" + dest + "?body=DEMANDE";
     }
 }
 
 window.receiveSMS = function(from, text) {
-    if (text.startsWith("POS:")) {
+    if(text.startsWith("POS:")) {
         const parts = text.replace("POS:","").split(",");
-        if (parts.length === 2) {
+        if(parts.length === 2) {
             otherLat = parseFloat(parts[0]);
             otherLon = parseFloat(parts[1]);
-            
-            document.getElementById('otherCoords').textContent = 
-                `${otherLat.toFixed(6)}°, ${otherLon.toFixed(6)}°`;
-            
+            document.getElementById('otherCoords').textContent = otherLat.toFixed(6) + ", " + otherLon.toFixed(6);
             otherMarker.setLatLng([otherLat, otherLon]);
             otherMarker.setOpacity(1);
-            otherMarker.bindPopup(`📍 ${from}<br>${otherLat.toFixed(6)}, ${otherLon.toFixed(6)}`).openPopup();
-            
-            updateDistance();
             map.setView([otherLat, otherLon], 15);
-            followMe = false;
-            
+            updateDistance();
             setStatus("✅ Position reçue de " + from);
         }
-    } else if (text === "DEMANDE") {
+    } else if(text === "DEMANDE") {
         setStatus("📩 Demande reçue — Envoi automatique...");
         setTimeout(() => sendPos(), 500);
     }
@@ -315,33 +205,24 @@ window.receiveSMS = function(from, text) {
 
 function updateDistance() {
     const d = getDistance(myLat, myLon, otherLat, otherLon);
-    let distText;
-    if (d < 1000) distText = Math.round(d) + " m";
-    else distText = (d/1000).toFixed(2) + " km";
-    document.getElementById('distance').textContent = distText;
+    document.getElementById('distance').textContent = d < 1000 ? Math.round(d)+"m" : (d/1000).toFixed(2)+"km";
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371000;
-    const φ1 = lat1 * Math.PI/180;
-    const φ2 = lat2 * Math.PI/180;
-    const Δφ = (lat2-lat1) * Math.PI/180;
-    const Δλ = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) +
-              Math.cos(φ1)*Math.cos(φ2) *
-              Math.sin(Δλ/2)*Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    const φ1 = lat1*Math.PI/180, φ2 = lat2*Math.PI/180;
+    const Δφ = (lat2-lat1)*Math.PI/180, Δλ = (lon2-lon1)*Math.PI/180;
+    const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)*Math.sin(Δλ/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function setStatus(text, type="") {
+function setStatus(text, isErr=false) {
     const el = document.getElementById('status');
     el.textContent = text;
-    el.className = type;
+    el.className = isErr ? 'status-err' : '';
 }
 
 window.onload = initMap;
 </script>
-
 </body>
 </html>
