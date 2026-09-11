@@ -1,0 +1,10 @@
+R_DEF: Internal format may change without notice
+local
+color black
+color green
+color ic_foreground
+color orange
+color primary
+color red
+color white
+mipmap ic_launcher

@@ -1,0 +1,94 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.thibautfihey.trackme"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+11-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:4:5-79
+11-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:4:22-76
+12    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+12-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:5:5-81
+12-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:5:22-78
+13    <uses-permission android:name="android.permission.SEND_SMS" />
+13-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:6:5-67
+13-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:6:22-64
+14    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+14-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:7:5-70
+14-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:7:22-67
+15    <uses-permission android:name="android.permission.READ_SMS" />
+15-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:8:5-67
+15-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:8:22-64
+16    <uses-permission android:name="android.permission.INTERNET" />
+16-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:9:5-67
+16-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:9:22-64
+17
+18    <permission
+18-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+19        android:name="com.thibautfihey.trackme.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+19-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+20        android:protectionLevel="signature" />
+20-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+21
+22    <uses-permission android:name="com.thibautfihey.trackme.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+22-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+22-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+23
+24    <application
+24-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:11:5-25:19
+25        android:allowBackup="true"
+25-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:12:9-35
+26        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+26-->[androidx.core:core:1.12.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/4dde0fce54f6341b6da19770f76a2130/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
+27        android:debuggable="true"
+28        android:extractNativeLibs="false"
+29        android:label="TrackMe"
+29-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:13:9-32
+30        android:theme="@style/Theme.AppCompat.Light.DarkActionBar" >
+30-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:14:9-67
+31        <activity
+31-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:16:9-23:20
+32            android:name="com.thibautfihey.trackme.MainActivity"
+32-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:17:13-41
+33            android:exported="true" >
+33-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:18:13-36
+34            <intent-filter>
+34-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:19:13-22:29
+35                <action android:name="android.intent.action.MAIN" />
+35-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:20:17-69
+35-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:20:25-66
+36
+37                <category android:name="android.intent.category.LAUNCHER" />
+37-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:21:17-77
+37-->/data/data/com.termux/files/home/Trackme/app/src/main/AndroidManifest.xml:21:27-74
+38            </intent-filter>
+39        </activity>
+40
+41        <provider
+41-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+42            android:name="androidx.startup.InitializationProvider"
+42-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+43            android:authorities="com.thibautfihey.trackme.androidx-startup"
+43-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+44            android:exported="false" >
+44-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+45            <meta-data
+45-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+46                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+46-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+47                android:value="androidx.startup" />
+47-->[androidx.emoji2:emoji2:1.2.0] /data/data/com.termux/files/home/.gradle/caches/transforms-3/ebd7e8b0739ea5852a86f1ec4bdee03d/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+48            <meta-data
+48-->[androidx.lifecycle:lifecycle-process:2.4.1] /data/data/com.termux/files/home/.gradle/caches/transforms-3/e31b4c49acd42e650810370e70a68f68/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:31:13-33:52
+49                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+49-->[androidx.lifecycle:lifecycle-process:2.4.1] /data/data/com.termux/files/home/.gradle/caches/transforms-3/e31b4c49acd42e650810370e70a68f68/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:32:17-78
+50                android:value="androidx.startup" />
+50-->[androidx.lifecycle:lifecycle-process:2.4.1] /data/data/com.termux/files/home/.gradle/caches/transforms-3/e31b4c49acd42e650810370e70a68f68/transformed/lifecycle-process-2.4.1/AndroidManifest.xml:33:17-49
+51        </provider>
+52    </application>
+53
+54</manifest>
