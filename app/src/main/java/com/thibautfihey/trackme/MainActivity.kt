@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -16,6 +17,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -94,11 +96,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) { startGPS(); return }
         val needed = mutableListOf<String>()
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.SEND_SMS)
-        if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECEIVE_SMS)
         if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 100) else startGPS()
     }
@@ -114,7 +116,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     private fun startGPS() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             return
         try {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
