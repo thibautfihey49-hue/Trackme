@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
+        // ✅ DÉPLACÉ : initialisation APRÈS map
         setupSmsReceivers()
         requestNecessaryPermissions()
     }
