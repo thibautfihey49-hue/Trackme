@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.telephony.SmsManager
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,8 +32,10 @@ class MainActivity : AppCompatActivity() {
     private var otherMarker: Marker? = null
     private var timer: Timer? = null
     private val sms = SmsManager.getDefault()
+    private var useDataSms = true // ✅ toggle: SMS données si possible
 
     private val perms = mutableListOf(
+        Manifest.permission.INTERNET,
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.SEND_SMS,
         Manifest.permission.RECEIVE_SMS,
@@ -42,10 +43,6 @@ class MainActivity : AppCompatActivity() {
     ).apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
-        }
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-            add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }.toTypedArray()
     
@@ -61,12 +58,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // ✅ CARTE — Configuration CORRECTE
+        val baseDir = File(filesDir, "osmdroid")
+        if (!baseDir.exists()) baseDir.mkdirs()
+        val tileDir = File(baseDir, "tiles")
+        if (!tileDir.exists()) tileDir.mkdirs()
+        
         val osmConfig = Configuration.getInstance()
+        osmConfig.osmdroidBasePath = baseDir
+        osmConfig.osmdroidTileCache = tileDir
         osmConfig.load(this, getSharedPreferences("osm", MODE_PRIVATE))
-        val osmDir = File(getExternalFilesDir(null), "osmdroid")
-        if (!osmDir.exists()) osmDir.mkdirs()
-        osmConfig.osmdroidBasePath = osmDir
-        osmConfig.osmdroidTileCache = File(osmDir, "tiles")
         
         initViews()
         checkPermissions()
@@ -81,10 +82,14 @@ class MainActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btnSendPosition)
         btnTrack = findViewById(R.id.btnTrack)
         
+        // ✅ CARTE — Paramètres pour affichage
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
         map.controller.setZoom(15.0)
         map.isTilesScaledToDpi = true
+        
+        // ✅ Position par défaut = Angers
+        map.controller.setCenter(GeoPoint(47.4768, -0.5435))
         
         btnReq.setOnClickListener { reqPos() }
         btnSend.setOnClickListener { sendPos() }
@@ -104,44 +109,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initApp() {
-        tvStatus.text = "✅ Prêt — SMS Port 7777 actif"
+        tvStatus.text = "✅ PRÊT — Carte chargée\n📡 SMS Port 7777 actif"
         startService(Intent(this, LocationService::class.java))
         
         SmsReceiver.onRequestReceived = { from ->
             sendPosTo(from)
-            runOnUiThread { tvStatus.text = "📩 Demande reçue de $from → Répondu (port 7777)" }
+            runOnUiThread { 
+                tvStatus.text = "📩 Demande de $from → Répondu\n✅ Regarde la carte !"
+            }
         }
         
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLoc = GeoPoint(lat, lon)
                 updateOtherMarker()
-                tvStatus.text = "✅ Position reçue de $from\n${"%.6f".format(lat)}, ${"%.6f".format(lon)}\n📡 SMS invisible (port 7777)"
+                tvStatus.text = "✅ POSITION REÇUE DE $from\n📍 ${"%.6f".format(lat)}, ${"%.6f".format(lon)}\n✅ Regarde la carte !"
             }
         }
         
         LocationService.onLocationUpdate = { loc ->
             runOnUiThread {
                 myLoc = GeoPoint(loc.latitude, loc.longitude)
-                tvMyLoc.text = "📍 Ma pos: ${"%.6f".format(loc.latitude)}, ${"%.6f".format(loc.longitude)}"
+                tvMyLoc.text = "📍 MA POSITION:\n${"%.6f".format(loc.latitude)}, ${"%.6f".format(loc.longitude)}"
                 updateMyMarker()
             }
         }
     }
 
-    // ✅ SMS DONNÉES PORT 7777 — CORRIGÉ
+    // ✅ ENVOI : D'abord essayer SMS DONNÉES → sinon SMS TEXTE
     private fun sendSms(dest: String, msg: String) {
+        val finalDest = if (!dest.startsWith("+")) "+$dest" else dest
+        
+        if (useDataSms) {
+            try {
+                val data = msg.toByteArray(Charsets.UTF_8)
+                sms.sendDataMessage(finalDest, null, 7777.toShort(), data, null, null)
+                android.util.Log.d("TrackMeSMS", "✅ SMS DONNÉES → $finalDest")
+                return
+            } catch (e: Exception) {
+                android.util.Log.w("TrackMeSMS", "SMS données échoué, fallback SMS texte", e)
+            }
+        }
+        
+        // ✅ FALLBACK : SMS TEXTE classique
         try {
-            val finalDest = if (!dest.startsWith("+")) "+$dest" else dest
-            val data = msg.toByteArray(Charsets.UTF_8)
-            
-            // sendDataMessage(destAddr, scAddr, destPort, data, sentIntent, deliveryIntent)
-            sms.sendDataMessage(finalDest, null, 7777.toShort(), data, null, null)
-            
-            android.util.Log.d("TrackMeSMS", "✅ SMS DONNÉES PORT 7777 → $finalDest : $msg")
+            sms.sendTextMessage(finalDest, null, msg, null, null)
+            android.util.Log.d("TrackMeSMS", "✅ SMS TEXTE → $finalDest")
         } catch (e: Exception) {
-            Toast.makeText(this, "❌ Erreur SMS données: ${e.message}", Toast.LENGTH_SHORT).show()
-            android.util.Log.e("TrackMeSMS", "Erreur envoi port 7777", e)
+            Toast.makeText(this, "❌ Erreur: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -156,7 +171,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun reqPos() {
         val n = getNum() ?: return
-        tvStatus.text = "📥 Demande envoi (port 7777)..."
+        tvStatus.text = "📤 Demande de position..."
         sendSms(n, "TRACKME:REQUEST")
     }
 
@@ -171,7 +186,7 @@ class MainActivity : AppCompatActivity() {
     private fun sendPos() {
         val n = getNum() ?: return
         sendPosTo(n)
-        tvStatus.text = "📤 Position envoyée (SMS données port 7777)"
+        tvStatus.text = "📤 Position envoyée !"
     }
 
     private fun toggleTrack() {
@@ -183,7 +198,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             val n = getNum() ?: return
             btnTrack.text = "⏹️ Arrêter"
-            tvStatus.text = "🔄 Suivi en cours (port 7777)..."
+            tvStatus.text = "🔄 Suivi en cours..."
             var sec = 60
             timer = Timer().apply {
                 scheduleAtFixedRate(object : TimerTask() {

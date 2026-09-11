@@ -16,8 +16,20 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
-        if (intent?.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
+        Log.d(TAG, "📥 Intent reçu: ${intent?.action}")
         
+        // ✅ Gérer SMS TEXTE classique
+        if (intent?.action == Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+            handleSms(intent, "SMS texte")
+        }
+        
+        // ✅ Gérer SMS DONNÉES (port 7777)
+        if (intent?.action == "android.intent.action.DATA_SMS_RECEIVED") {
+            handleSms(intent, "SMS données PORT 7777")
+        }
+    }
+    
+    private fun handleSms(intent: Intent, type: String) {
         val messages: Array<SmsMessage> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             Telephony.Sms.Intents.getMessagesFromIntent(intent)
         } else {
@@ -27,13 +39,13 @@ class SmsReceiver : BroadcastReceiver() {
         }
 
         for (msg in messages) {
-            val body = msg.messageBody ?: ""
+            val body = msg.messageBody ?: String(msg.userData ?: byteArrayOf(), Charsets.UTF_8)
             val from = msg.originatingAddress ?: ""
             
+            Log.d(TAG, "[$type] De $from : $body")
+            
             if (body.startsWith(SMS_PREFIX)) {
-                Log.d(TAG, "✅ SMS TrackMe INTERCEPTÉ — PAS DANS LA BOITE : $body")
-                
-                // 🚫 ANNULE LA PROPAGATION — N'APPARAÎT JAMAIS DANS LA MESSAGERIE
+                Log.d(TAG, "✅ INTERCEPTÉ — Annulé de la boîte")
                 abortBroadcast()
                 
                 val content = body.removePrefix(SMS_PREFIX)
