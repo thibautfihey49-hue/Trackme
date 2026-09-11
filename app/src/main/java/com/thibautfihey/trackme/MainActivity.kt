@@ -53,43 +53,42 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        // ✅ DÉPLACÉ : initialisation APRÈS map
         setupSmsReceivers()
         requestNecessaryPermissions()
     }
 
     private fun setupSmsReceivers() {
-        val self = this@MainActivity
+        val mainActivity = this
         
         SmsReceiver.onPhotoReceived = { from, bitmap ->
-            self.runOnUiThread {
-                ivPhoto.visibility = View.VISIBLE
-                ivPhoto.setImageBitmap(bitmap)
-                tvStatus.text = "✅ PHOTO REÇUE !\nDe : $from"
+            mainActivity.runOnUiThread {
+                mainActivity.ivPhoto.visibility = View.VISIBLE
+                mainActivity.ivPhoto.setImageBitmap(bitmap)
+                mainActivity.tvStatus.text = "✅ PHOTO REÇUE !\nDe : $from"
             }
         }
 
         SmsReceiver.onVideoReceived = { from, videoUrl ->
-            self.runOnUiThread {
-                tvStatus.text = "✅ VIDÉO REÇUE !\nDe : $from\nLien : $videoUrl"
+            mainActivity.runOnUiThread {
+                mainActivity.tvStatus.text = "✅ VIDÉO REÇUE !\nDe : $from\nLien : $videoUrl"
             }
         }
 
         SmsReceiver.onPositionReceived = { lat, lon, from ->
-            self.runOnUiThread {
-                otherLocation = GeoPoint(lat, lon)
-                updateOtherMarker()
-                tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
+            mainActivity.runOnUiThread {
+                mainActivity.otherLocation = GeoPoint(lat, lon)
+                mainActivity.updateOtherMarker()
+                mainActivity.tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
             }
         }
         
         SmsReceiver.onRequestReceived = { from ->
-            self.runOnUiThread {
-                currentLocation?.let {
-                    sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
-                    tvStatus.text = "✅ Position envoyée à $from"
+            mainActivity.runOnUiThread {
+                mainActivity.currentLocation?.let {
+                    mainActivity.sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
+                    mainActivity.tvStatus.text = "✅ Position envoyée à $from"
                 } ?: run {
-                    tvStatus.text = "⚠️ Position pas encore disponible"
+                    mainActivity.tvStatus.text = "⚠️ Position pas encore disponible"
                 }
             }
         }
