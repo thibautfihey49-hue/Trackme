@@ -23,7 +23,6 @@ import android.telephony.SmsMessage
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private val smsReceiver = SmsReceiver()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,6 +50,8 @@ class MainActivity : AppCompatActivity() {
 
         webView.loadUrl("file:///android_asset/index.html")
         checkPermissions()
+        
+        // ✅ Récepteur DANS MainActivity — accès direct à webView
         registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
     }
 
@@ -92,7 +93,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    inner class SmsReceiver : BroadcastReceiver() {
+    // ✅ RÉCEPTEUR DANS LA MÊME CLASSE — ACCÈS DIRECT À webView
+    private val smsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
                 context ?: return
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity() {
                     val text = msg.messageBody ?: continue
                     val safeFrom = from.replace("'", "\\'")
                     val safeText = text.replace("'", "\\'")
+                    
                     runOnUiThread {
                         webView.evaluateJavascript("receiveSMS('$safeFrom', '$safeText')", null)
                     }
