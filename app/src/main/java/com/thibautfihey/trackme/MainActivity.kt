@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         } catch (e: Exception) {}
     }
 
-    fun envoyerPosition(v: View) {
+    fun sendMyPosition(v: View) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
             tvStatus.text = "⚠️ Entre un numéro"
@@ -127,7 +127,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
-    fun demanderPosition(v: View) {
+    fun requestPosition(v: View) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
             tvStatus.text = "⚠️ Entre un numéro"
