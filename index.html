@@ -37,26 +37,24 @@
         .precision-medium { color: #f9ab00; font-weight: 500; }
         .precision-bad { color: #ea4335; font-weight: 500; }
         
-        .live-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #34a853; margin-right: 6px; animation: pulse 2s infinite; }
+        .live-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #999; margin-right: 6px; }
+        .live-indicator.active { background: #34a853; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,168,83,0.4); } 70% { box-shadow: 0 0 0 8px rgba(52,168,83,0); } 100% { box-shadow: 0 0 0 0 rgba(52,168,83,0); } }
     </style>
-    <!-- Leaflet + Icônes -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Icône de position précise -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
 
 <h1>📍 TrackMe — GPS Précis</h1>
 
 <div class="card">
-    <input type="tel" id="num" placeholder="Numéro (+336...)">
+    <input type="tel" id="num" placeholder="Numéro (ex: 0612345678)">
     
     <div id="status">✅ Prêt — Appuyez sur "Activer GPS"</div>
     
     <button class="btn-green" onclick="startGPS()">
-        <span class="live-indicator" id="gpsDot" style="background:#999"></span>
+        <span class="live-indicator" id="gpsDot"></span>
         📡 Activer GPS en temps réel
     </button>
     <button class="btn-blue" onclick="centerOnMe()">🎯 Centrer sur ma position</button>
@@ -82,20 +80,19 @@ let otherLat = null;
 let otherLon = null;
 let map, myMarker, otherMarker, accuracyCircle;
 let watchId = null;
-let followMe = true; // Centrer automatiquement sur moi
+let followMe = true;
 
 // Initialisation carte
 function initMap() {
     map = L.map('map', { zoomControl: true }).setView([myLat, myLon], 16);
     
-    // 🗺️ TUILLES HAUTE QUALITÉ (comme Google Maps)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap contributors',
+        attribution: '© OpenStreetMap',
         detectRetina: true
     }).addTo(map);
     
-    // 📍 MARQUEUR MOI — style Google Maps
+    // Marqueur moi
     const myIcon = L.divIcon({
         className: 'my-location-icon',
         html: '<div style="width:24px;height:24px;background:#1a73e8;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:8px;height:8px;background:white;border-radius:50%;"></div></div>',
@@ -104,7 +101,7 @@ function initMap() {
     });
     myMarker = L.marker([myLat, myLon], { icon: myIcon, zIndexOffset: 1000 }).addTo(map);
     
-    // 🭀 CERCLE DE PRÉCISION (comme Google Maps)
+    // Cercle de précision
     accuracyCircle = L.circle([myLat, myLon], {
         color: '#1a73e8',
         fillColor: '#1a73e8',
@@ -114,7 +111,7 @@ function initMap() {
         radius: 50
     }).addTo(map);
     
-    // 📍 MARQUEUR AUTRE
+    // Marqueur autre
     const otherIcon = L.divIcon({
         className: 'other-location-icon',
         html: '<div style="width:24px;height:24px;background:#ea4335;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
@@ -122,36 +119,33 @@ function initMap() {
         iconAnchor: [12, 12]
     });
     otherMarker = L.marker([0, 0], { icon: otherIcon, opacity: 0 }).addTo(map);
-    
-    map.setView([myLat, myLon], 16);
 }
 
-// 📡 ACTIVER GPS EN TEMPS RÉEL — HAUTE PRÉCISION
+// 📡 ACTIVER GPS — DEMANDE PERMISSION EXPLICITE
 function startGPS() {
     if (!navigator.geolocation) {
         setStatus("❌ GPS non supporté", "status-err");
         return;
     }
     
-    setStatus("⏳ Recherche GPS haute précision...", "status-wait");
-    document.getElementById('gpsDot').style.background = '#f9ab00';
+    setStatus("⏳ Demande de permission GPS...", "status-wait");
+    document.getElementById('gpsDot').classList.remove('active');
     
-    // 🔴 ARRÊTER SI DÉJÀ EN COURS
+    // Arrêter si déjà en cours
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     
-    // 🟢 DÉMARRER LE SUIVI CONTINU — PARAMÈTRES PRÉCIS
+    // Démarrer le suivi
     watchId = navigator.geolocation.watchPosition(
-        // ✅ SUCCÈS — Position reçue
+        // SUCCÈS
         (pos) => {
             myLat = pos.coords.latitude;
             myLon = pos.coords.longitude;
-            myAccuracy = pos.coords.accuracy; // Précision en mètres
+            myAccuracy = pos.coords.accuracy;
             
-            // Mettre à jour l'affichage
             document.getElementById('myCoords').textContent = 
                 `${myLat.toFixed(6)}°, ${myLon.toFixed(6)}°`;
             
-            // Précision avec couleur
+            // Précision couleur
             let accClass, accText;
             if (myAccuracy <= 10) {
                 accClass = "precision-good"; accText = "✅ Excellent (" + Math.round(myAccuracy) + "m)";
@@ -164,70 +158,68 @@ function startGPS() {
             document.getElementById('accClass').innerHTML = accText;
             document.getElementById('accClass').className = "precision " + accClass;
             
-            // Mettre à jour marqueur et cercle de précision
             myMarker.setLatLng([myLat, myLon]);
             accuracyCircle.setLatLng([myLat, myLon]);
             accuracyCircle.setRadius(myAccuracy);
             
-            // Centrer automatiquement
             if (followMe) map.setView([myLat, myLon], 17);
-            
-            // Calculer distance si autre position connue
             if (otherLat && otherLon) updateDistance();
             
-            // Indicateur en vert = GPS OK
-            document.getElementById('gpsDot').style.background = '#34a853';
+            document.getElementById('gpsDot').classList.add('active');
             setStatus("✅ GPS ACTIF — Précision: " + Math.round(myAccuracy) + "m");
         },
-        // ❌ ERREUR
+        // ERREUR
         (err) => {
             let msg;
             switch(err.code) {
-                case err.PERMISSION_DENIED: msg = "❌ Permission GPS refusée"; break;
-                case err.POSITION_UNAVAILABLE: msg = "⚠️ Position indisponible"; break;
-                case err.TIMEOUT: msg = "⏳ GPS trop lent..."; break;
+                case err.PERMISSION_DENIED: msg = "❌ Permission GPS refusée — Allez dans les paramètres de l'app → Autorisations → Localisation"; break;
+                case err.POSITION_UNAVAILABLE: msg = "⚠️ Position indisponible — Activez le GPS de votre téléphone"; break;
+                case err.TIMEOUT: msg = "⏳ GPS trop lent... Sortez ou activez le mode précision"; break;
                 default: msg = "❌ Erreur GPS: " + err.message;
             }
             setStatus(msg, "status-err");
-            document.getElementById('gpsDot').style.background = '#ea4335';
+            document.getElementById('gpsDot').classList.remove('active');
         },
-        // 🔧 PARAMÈTRES POUR PRÉCISION MAXIMALE
+        // PARAMÈTRES PRÉCIS
         {
-            enableHighAccuracy: true,    // 🎯 GPS PRÉCIS (pas réseau)
-            maximumAge: 2000,            // 🔄 Mise à jour max toutes les 2s
-            timeout: 10000               // ⏱️ Délai max 10s
+            enableHighAccuracy: true,
+            maximumAge: 2000,
+            timeout: 15000
         }
     );
 }
 
-// 🎯 Centrer sur ma position
 function centerOnMe() {
     followMe = true;
     map.setView([myLat, myLon], 17);
     setStatus("🎯 Centré sur ma position");
 }
 
-// ⏹️ ARRÊTER LE GPS
 function stopGPS() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        document.getElementById('gpsDot').style.background = '#999';
+        document.getElementById('gpsDot').classList.remove('active');
         setStatus("⏹️ GPS arrêté");
     }
 }
 
-// 📤 ENVOYER MA POSITION PAR SMS DONNÉES
-async function sendPos() {
-    const num = document.getElementById('num').value.trim();
+// 📤 ENVOYER POSITION — FORMAT NUMÉRO AUTOMATIQUE
+function sendPos() {
+    let num = document.getElementById('num').value.trim().replace(/\s/g, '');
     if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
-    const dest = num.startsWith('+') ? num : '+' + num;
+    
+    // ✅ FORMATAGE AUTOMATIQUE
+    let dest = num;
+    if (num.startsWith('0')) dest = '+33' + num.substring(1);
+    else if (!num.startsWith('+')) dest = '+' + num;
+    
     const msg = `POS:${myLat.toFixed(6)},${myLon.toFixed(6)}`;
     
     try {
         if (typeof Android !== 'undefined' && Android.sendDataSMS) {
             Android.sendDataSMS(dest, 7777, msg);
-            setStatus("✅ Position envoyée à " + num + "\nPrécision: " + Math.round(myAccuracy||0) + "m");
+            setStatus("✅ Envoyé à " + dest + "\nPrécision: " + Math.round(myAccuracy||0) + "m");
         } else {
             window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
             setStatus("📱 Appuyez sur ENVOYER dans SMS");
@@ -238,17 +230,22 @@ async function sendPos() {
     }
 }
 
-// 📥 DEMANDER POSITION
-async function askPos() {
-    const num = document.getElementById('num').value.trim();
+// 📥 DEMANDER POSITION — FORMATAGE AUTOMATIQUE
+function askPos() {
+    let num = document.getElementById('num').value.trim().replace(/\s/g, '');
     if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
-    const dest = num.startsWith('+') ? num : '+' + num;
+    
+    // ✅ FORMATAGE AUTOMATIQUE
+    let dest = num;
+    if (num.startsWith('0')) dest = '+33' + num.substring(1);
+    else if (!num.startsWith('+')) dest = '+' + num;
+    
     const msg = "DEMANDE";
     
     try {
         if (typeof Android !== 'undefined' && Android.sendDataSMS) {
             Android.sendDataSMS(dest, 7777, msg);
-            setStatus("⏳ Demande envoyée — en attente de réponse...");
+            setStatus("⏳ Demande envoyée à " + dest + " — en attente...");
         } else {
             window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
             setStatus("📱 Appuyez sur ENVOYER dans SMS");
@@ -259,7 +256,7 @@ async function askPos() {
     }
 }
 
-// 📩 RECEVOIR POSITION DE L'AUTRE
+// 📩 RECEVOIR SMS
 window.receiveSMS = function(from, text) {
     if (text.startsWith("POS:")) {
         const parts = text.replace("POS:","").split(",");
@@ -268,30 +265,24 @@ window.receiveSMS = function(from, text) {
             otherLon = parseFloat(parts[1]);
             
             document.getElementById('otherCoords').textContent = 
-                `${otherLat.toFixed(6)}°, ${otherLon.toFixed(6)}°`;
+                `${otherLat.toFixed(6)}°, ${otherLon.toFixed(6)}`;
             
-            // Afficher marqueur
             otherMarker.setLatLng([otherLat, otherLon]);
             otherMarker.setOpacity(1);
             otherMarker.bindPopup(`📍 ${from}<br>${otherLat.toFixed(6)}, ${otherLon.toFixed(6)}`).openPopup();
             
-            // Calculer distance
             updateDistance();
-            
-            // Centrer sur la position reçue
             map.setView([otherLat, otherLon], 15);
             followMe = false;
             
             setStatus("✅ Position reçue de " + from);
         }
     } else if (text === "DEMANDE") {
-        setStatus("📩 Demande reçue — Envoyez votre position !");
-        // Réponse automatique
+        setStatus("📩 Demande reçue — Envoi automatique...");
         setTimeout(() => sendPos(), 500);
     }
 };
 
-// 📏 CALCULER LA DISTANCE ENTRE LES DEUX POSITIONS
 function updateDistance() {
     const d = getDistance(myLat, myLon, otherLat, otherLon);
     let distText;
@@ -300,9 +291,8 @@ function updateDistance() {
     document.getElementById('distance').textContent = distText;
 }
 
-// 📏 FORMULE DE HAVERSINE — Distance en mètres
 function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000; // Rayon de la Terre en mètres
+    const R = 6371000;
     const φ1 = lat1 * Math.PI/180;
     const φ2 = lat2 * Math.PI/180;
     const Δφ = (lat2-lat1) * Math.PI/180;
@@ -311,10 +301,9 @@ function getDistance(lat1, lon1, lat2, lon2) {
               Math.cos(φ1)*Math.cos(φ2) *
               Math.sin(Δλ/2)*Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c; // Distance en mètres
+    return R * c;
 }
 
-// 📊 Mettre à jour le statut
 function setStatus(text, type="") {
     const el = document.getElementById('status');
     el.textContent = text;
