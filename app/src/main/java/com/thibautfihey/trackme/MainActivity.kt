@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private var locationManager: LocationManager? = null
     private var myLat = 47.47
     private var myLon = -0.55
-    private var permissionsOk = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,24 +42,23 @@ class MainActivity : AppCompatActivity(), LocationListener {
             map?.controller?.setZoom(15.0)
             map?.controller?.setCenter(GeoPoint(myLat, myLon))
         } catch (e: Exception) {
-            Toast.makeText(this, "Erreur carte: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Erreur carte: ${e.message}", Toast.LENGTH_SHORT).show()
         }
 
         try {
-            locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+            locationManager = getSystemService(LOCATION_SERVICE) as LocationManager?
         } catch (e: Exception) {
-            Toast.makeText(this, "Erreur GPS: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Erreur GPS: ${e.message}", Toast.LENGTH_SHORT).show()
         }
 
-        tvStatus.text = "✅ DÉMARRÉ !\n→ Accepte les permissions\n→ Entre un numéro"
+        tvStatus.text = "✅ PRÊT !\n→ Entre un numéro (ex: +336...)"
         
         requestPermissions()
     }
 
     private fun requestPermissions() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            permissionsOk = true
-            startGPSSafe()
+            startGPS()
             return
         }
 
@@ -75,25 +73,20 @@ class MainActivity : AppCompatActivity(), LocationListener {
         if (needed.isNotEmpty()) {
             requestPermissions(needed.toTypedArray(), 100)
         } else {
-            permissionsOk = true
-            startGPSSafe()
+            startGPS()
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100) {
-            permissionsOk = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            if (permissionsOk) {
-                tvStatus.text = "✅ Permissions OK !\nGPS en cours..."
-                startGPSSafe()
-            } else {
-                tvStatus.text = "⚠️ Permissions refusées\nCertaines fonctionnalités limitées"
-            }
+            val ok = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+            tvStatus.text = if (ok) "✅ Permissions OK !" else "⚠️ Permissions limitées"
+            startGPS()
         }
     }
 
-    private fun startGPSSafe() {
+    private fun startGPS() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return
@@ -102,14 +95,14 @@ class MainActivity : AppCompatActivity(), LocationListener {
             locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
             locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 5f, this)
         } catch (e: Exception) {
-            tvStatus.text = "⚠️ GPS indisponible : ${e.message}"
+            tvStatus.text = "⚠️ GPS indisponible"
         }
     }
 
     override fun onLocationChanged(location: Location) {
         myLat = location.latitude
         myLon = location.longitude
-        tvStatus.text = "📍 Position :\n$myLat\n$myLon"
+        tvStatus.text = "📍 $myLat\n$myLon"
         try {
             map?.controller?.setCenter(GeoPoint(myLat, myLon))
         } catch (e: Exception) {}
@@ -118,7 +111,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     fun envoyerPosition(v: View) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
-            tvStatus.text = "⚠️ Entre un numéro d'abord !"
+            tvStatus.text = "⚠️ Entre un numéro"
             return
         }
         val dest = if (num.startsWith("+")) num else "+$num"
@@ -128,16 +121,16 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8),
                 null, null
             )
-            tvStatus.text = "✅ Position envoyée à $num"
+            tvStatus.text = "✅ Envoyé à $num"
         } catch (e: Exception) {
-            tvStatus.text = "❌ Erreur envoi : ${e.message}"
+            tvStatus.text = "❌ ${e.message}"
         }
     }
 
     fun demanderPosition(v: View) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
-            tvStatus.text = "⚠️ Entre un numéro d'abord !"
+            tvStatus.text = "⚠️ Entre un numéro"
             return
         }
         val dest = if (num.startsWith("+")) num else "+$num"
@@ -147,9 +140,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 "DEMANDE".toByteArray(Charsets.UTF_8),
                 null, null
             )
-            tvStatus.text = "⏳ Demande envoyée à $num"
+            tvStatus.text = "⏳ Demande envoyée"
         } catch (e: Exception) {
-            tvStatus.text = "❌ Erreur demande : ${e.message}"
+            tvStatus.text = "❌ ${e.message}"
         }
     }
 

@@ -2,20 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.thibautfihey.trackme">
 
-    <!-- PERMISSIONS -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
-    <uses-permission android:name="android.permission.READ_SMS" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="TrackMe"
-        android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
         
         <activity
@@ -27,7 +22,6 @@
             </intent-filter>
         </activity>
 
-        <!-- RÉCEPTEUR SMS DÉCLARÉ ! -->
         <receiver
             android:name=".SmsReceiverBroadcast"
             android:exported="true">
