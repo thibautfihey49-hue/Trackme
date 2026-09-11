@@ -3,122 +3,60 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp">
-
-    <!-- CARTE GPS -->
-    <org.osmdroid.views.MapView
-        android:id="@+id/map"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="📱 Numéro de l'autre appareil"
-        android:textSize="14sp"
-        android:padding="4dp"/>
+    android:padding="8dp"
+    android:background="#F5F5F5">
 
     <EditText
         android:id="@+id/etNumber"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="+33612345678"
+        android:hint="Numéro (ex: +336...)"
         android:inputType="phone"
         android:layout_marginBottom="8dp"/>
 
-    <!-- BOUTONS GPS -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="✅ Démarrage..."
+        android:padding="12dp"
+        android:background="#E8F5E9"
+        android:textColor="#2E7D32"
+        android:layout_marginBottom="8dp"/>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
 
         <Button
-            android:id="@+id/btnSendPos"
+            android:id="@+id/sendMyPosition"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="📍 Envoyer ma position"
             android:onClick="sendMyPosition"
-            android:layout_marginEnd="4dp"/>
+            android:layout_marginEnd="4dp"
+            android:background="#2196F3"
+            android:textColor="#FFFFFF"/>
 
         <Button
-            android:id="@+id/btnReqPos"
+            android:id="@+id/requestPosition"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="🔍 Voir sa position"
+            android:text="📥 Demander position"
             android:onClick="requestPosition"
-            android:layout_marginStart="4dp"/>
+            android:layout_marginStart="4dp"
+            android:background="#FF9800"
+            android:textColor="#FFFFFF"/>
     </LinearLayout>
 
-    <!-- BOUTONS PHOTO/VIDÉO -->
-    <LinearLayout
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp">
-
-        <Button
-            android:id="@+id/btnPhotoBack"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="📸 Photo Arrière"
-            android:onClick="sendPhotoBack"
-            android:layout_marginEnd="4dp"/>
-
-        <Button
-            android:id="@+id/btnPhotoFront"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🤳 Photo Avant"
-            android:onClick="sendPhotoFront"
-            android:layout_marginStart="4dp"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp">
-
-        <Button
-            android:id="@+id/btnVideoBack"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🎥 Vidéo Arrière"
-            android:onClick="sendVideoBack"
-            android:layout_marginEnd="4dp"/>
-
-        <Button
-            android:id="@+id/btnVideoFront"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="📹 Vidéo Avant"
-            android:onClick="sendVideoFront"
-            android:layout_marginStart="4dp"/>
-    </LinearLayout>
-
-    <!-- STATUT ET PHOTO REÇUE -->
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Prêt — Attente des permissions..."
-        android:textSize="13sp"
-        android:padding="8dp"
-        android:background="#F0F0F0"
-        android:layout_marginTop="8dp"/>
-
-    <ImageView
-        android:id="@+id/ivPhoto"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="4dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
 
 </LinearLayout>

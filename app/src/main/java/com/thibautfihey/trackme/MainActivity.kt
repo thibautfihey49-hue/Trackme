@@ -32,8 +32,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private var myLat = 47.47
     private var myLon = -0.55
-    private var otherLat = 0.0
-    private var otherLon = 0.0
     private lateinit var myMarker: Marker
     private lateinit var otherMarker: Marker
 
@@ -44,15 +42,25 @@ class MainActivity : AppCompatActivity(), LocationListener {
                     val lat = intent.getDoubleExtra("lat", 0.0)
                     val lon = intent.getDoubleExtra("lon", 0.0)
                     val from = intent.getStringExtra("from") ?: ""
-                    runOnUiThread { updateOtherPosition(lat, lon); tvStatus.text = "✅ Reçu de $from\n$lat\n$lon" }
+                    runOnUiThread {
+                        updateOtherPosition(lat, lon)
+                        tvStatus.text = "✅ Reçu de $from\n$lat\n$lon"
+                    }
                 }
                 "TRACKME_REQ" -> {
                     val from = intent?.getStringExtra("from") ?: ""
                     runOnUiThread {
                         val dest = if (from.startsWith("+")) from else "+$from"
-                        SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
-                            "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8), null, null)
-                        tvStatus.text = "✅ Position envoyée à $from"
+                        try {
+                            SmsManager.getDefault().sendDataMessage(
+                                dest, null, 7777.toShort(),
+                                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8),
+                                null, null
+                            )
+                            tvStatus.text = "✅ Position envoyée à $from"
+                        } catch (e: Exception) {
+                            tvStatus.text = "❌ Erreur envoi"
+                        }
                     }
                 }
             }
@@ -94,7 +102,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     private fun requestPermissions() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) { startGPS(); return }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            startGPS()
+            return
+        }
         val needed = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -102,7 +113,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
             needed.add(Manifest.permission.SEND_SMS)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECEIVE_SMS)
-        if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 100) else startGPS()
+        if (needed.isNotEmpty()) {
+            requestPermissions(needed.toTypedArray(), 100)
+        } else {
+            startGPS()
+        }
     }
 
     override fun onRequestPermissionsResult(rq: Int, p: Array<out String>, res: IntArray) {
@@ -121,7 +136,9 @@ class MainActivity : AppCompatActivity(), LocationListener {
         try {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 5f, this)
-        } catch (e: Exception) { tvStatus.text = "⚠️ GPS indisponible" }
+        } catch (e: Exception) {
+            tvStatus.text = "⚠️ GPS indisponible"
+        }
     }
 
     override fun onLocationChanged(location: Location) {
@@ -135,34 +152,53 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     fun sendMyPosition(v: View) {
         val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
+        if (num.isEmpty()) {
+            tvStatus.text = "⚠️ Entre un numéro"
+            return
+        }
         val dest = if (num.startsWith("+")) num else "+$num"
         try {
-            SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
-                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8), null, null)
+            SmsManager.getDefault().sendDataMessage(
+                dest, null, 7777.toShort(),
+                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8),
+                null, null
+            )
             tvStatus.text = "✅ Envoyé à $num"
-        } catch (e: Exception) { tvStatus.text = "❌ ${e.message}" }
+        } catch (e: Exception) {
+            tvStatus.text = "❌ ${e.message}"
+        }
     }
 
     fun requestPosition(v: View) {
         val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
+        if (num.isEmpty()) {
+            tvStatus.text = "⚠️ Entre un numéro"
+            return
+        }
         val dest = if (num.startsWith("+")) num else "+$num"
         try {
-            SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
-                "DEMANDE".toByteArray(Charsets.UTF_8), null, null)
+            SmsManager.getDefault().sendDataMessage(
+                dest, null, 7777.toShort(),
+                "DEMANDE".toByteArray(Charsets.UTF_8),
+                null, null
+            )
             tvStatus.text = "⏳ Demande envoyée"
-        } catch (e: Exception) { tvStatus.text = "❌ ${e.message}" }
+        } catch (e: Exception) {
+            tvStatus.text = "❌ ${e.message}"
+        }
     }
 
     private fun updateOtherPosition(lat: Double, lon: Double) {
-        otherLat = lat; otherLon = lon
         otherMarker.position = GeoPoint(lat, lon)
         otherMarker.setVisible(true)
         map.invalidate()
     }
 
-    override fun onDestroy() { super.onDestroy(); unregisterReceiver(smsReceiver) }
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(smsReceiver)
+    }
+
     override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
     override fun onProviderEnabled(p: String) {}
     override fun onProviderDisabled(p: String) {}
