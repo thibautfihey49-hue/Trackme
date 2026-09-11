@@ -2,12 +2,15 @@ package com.thibautfihey.trackme
 
 import android.Manifest
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
@@ -15,11 +18,27 @@ import android.widget.Toast
 import android.telephony.SmsManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.osmdroid.api.IMapController
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import android.content.Context
+import android.location.LocationListener
+import android.location.LocationManager
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var etNumber: EditText
     private lateinit var ivPhoto: ImageView
     private lateinit var tvStatus: TextView
+    private lateinit var map: MapView
+    private lateinit var mapController: IMapController
+    private lateinit var locationManager: LocationManager
+    private var currentLocation: GeoPoint? = null
+    private var otherLocation: GeoPoint? = null
     
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -27,8 +46,10 @@ class MainActivity : AppCompatActivity() {
         val allGranted = permissions.all { it.value }
         if (allGranted) {
             tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
+            initMap()
+            startLocationUpdates()
         } else {
-            tvStatus.text = "⚠️ Permissions refusées — L'application ne fonctionnera pas correctement"
+            tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
         }
     }
 
@@ -39,11 +60,22 @@ class MainActivity : AppCompatActivity() {
         etNumber = findViewById(R.id.etNumber)
         ivPhoto = findViewById(R.id.ivPhoto)
         tvStatus = findViewById(R.id.tvStatus)
+        map = findViewById(R.id.map)
 
-        // Demander les permissions au démarrage
+        // Initialiser carte
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        mapController = map.controller
+        mapController.setZoom(15.0)
+
+        // Gestionnaire de localisation
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        // Demander permissions
         requestNecessaryPermissions()
 
-        // ===== RÉCEPTEURS PHOTO & VIDÉO =====
+        // ===== RÉCEPTEURS =====
         SmsReceiver.onPhotoReceived = { from, bitmap ->
             runOnUiThread {
                 ivPhoto.visibility = View.VISIBLE
@@ -55,6 +87,14 @@ class MainActivity : AppCompatActivity() {
         SmsReceiver.onVideoReceived = { from, videoUrl ->
             runOnUiThread {
                 tvStatus.text = "✅ VIDÉO REÇUE !\nDe : $from\nLien : $videoUrl"
+            }
+        }
+
+        SmsReceiver.onPositionReceived = { lat, lon, from ->
+            runOnUiThread {
+                otherLocation = GeoPoint(lat, lon)
+                updateOtherMarker()
+                tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
             }
         }
     }
@@ -78,16 +118,101 @@ class MainActivity : AppCompatActivity() {
             if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
             }
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
         }
         
         if (permissionsToRequest.isNotEmpty()) {
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
+            initMap()
+            startLocationUpdates()
         }
     }
 
-    // ===== FONCTIONS D'ENVOI DE COMMANDES =====
+    private fun initMap() {
+        // Position par défaut
+        val startPoint = GeoPoint(47.47, -0.55)
+        mapController.setCenter(startPoint)
+    }
+
+    private fun startLocationUpdates() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    10000L, 10f, this
+                )
+                locationManager.requestLocationUpdates(
+                    LocationManager.NETWORK_PROVIDER,
+                    10000L, 10f, this
+                )
+            } catch (e: Exception) {
+                tvStatus.text = "⚠️ GPS indisponible"
+            }
+        }
+    }
+
+    override fun onLocationChanged(location: Location) {
+        currentLocation = GeoPoint(location.latitude, location.longitude)
+        updateMyMarker()
+    }
+
+    private fun updateMyMarker() {
+        currentLocation?.let { point ->
+            map.overlays.removeAll { it is Marker && it.id == "my_position" }
+            val marker = Marker(map)
+            marker.id = "my_position"
+            marker.position = point
+            marker.title = "Ma position"
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            map.overlays.add(marker)
+            mapController.setCenter(point)
+            map.invalidate()
+        }
+    }
+
+    private fun updateOtherMarker() {
+        otherLocation?.let { point ->
+            map.overlays.removeAll { it is Marker && it.id == "other_position" }
+            val marker = Marker(map)
+            marker.id = "other_position"
+            marker.position = point
+            marker.title = "Position de l'autre"
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            map.overlays.add(marker)
+            map.invalidate()
+        }
+    }
+
+    // ===== FONCTIONS GPS =====
+    fun sendMyPosition(v: View) {
+        val num = etNumber.text.toString().trim()
+        if (num.isEmpty()) {
+            tvStatus.text = "⚠️ Entre un numéro d'abord"
+            return
+        }
+        currentLocation?.let {
+            sendSmsData(num, "POSITION:${it.latitude},${it.longitude}")
+            tvStatus.text = "✅ Position envoyée !"
+        } ?: run {
+            tvStatus.text = "⚠️ Position GPS non disponible encore"
+        }
+    }
+
+    fun requestPosition(v: View) {
+        val num = etNumber.text.toString().trim()
+        if (num.isEmpty()) {
+            tvStatus.text = "⚠️ Entre un numéro d'abord"
+            return
+        }
+        sendSmsData(num, "REQUEST_POSITION")
+        tvStatus.text = "⏳ Demande de position envoyée..."
+    }
+
+    // ===== FONCTIONS PHOTO/VIDÉO =====
     fun sendPhotoBack(v: View) = sendSms("PHOTO")
     fun sendPhotoFront(v: View) = sendSms("PHOTO:FRONT")
     fun sendVideoBack(v: View) = sendSms("VIDEO")
@@ -99,24 +224,28 @@ class MainActivity : AppCompatActivity() {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        
-        // Vérifier permission SEND_SMS avant d'envoyer
+        sendSmsData(num, cmd)
+        tvStatus.text = "⏳ Commande envoyée : $cmd"
+    }
+
+    private fun sendSmsData(num: String, message: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-            tvStatus.text = "⚠️ Permission SEND_SMS manquante — Redémarre l'application"
-            requestNecessaryPermissions()
+            tvStatus.text = "⚠️ Permission SEND_SMS manquante"
             return
         }
-        
         val dest = if (num.startsWith("+")) num else "+$num"
         try {
             SmsManager.getDefault().sendDataMessage(
                 dest, null, 7777.toShort(),
-                "TRACKME:$cmd".toByteArray(Charsets.UTF_8), null, null
+                "TRACKME:$message".toByteArray(Charsets.UTF_8), null, null
             )
-            tvStatus.text = "⏳ Commande envoyée : $cmd"
         } catch (e: Exception) {
-            tvStatus.text = "❌ Erreur envoi : ${e.message}"
+            tvStatus.text = "❌ Erreur : ${e.message}"
         }
     }
+
+    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+    override fun onProviderEnabled(provider: String) {}
+    override fun onProviderDisabled(provider: String) {}
 }
