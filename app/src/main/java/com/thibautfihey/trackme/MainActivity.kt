@@ -27,7 +27,6 @@ import org.osmdroid.views.overlay.Marker
 
 class MainActivity : AppCompatActivity(), LocationListener {
     
-    // ===== TOUTES LES PROPRIÉTÉS EN PREMIER =====
     private lateinit var etNumber: EditText
     private lateinit var ivPhoto: ImageView
     private lateinit var tvStatus: TextView
@@ -54,8 +53,15 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
+        setupSmsReceivers()
+        requestNecessaryPermissions()
+    }
+
+    private fun setupSmsReceivers() {
+        val self = this@MainActivity
+        
         SmsReceiver.onPhotoReceived = { from, bitmap ->
-            runOnUiThread {
+            self.runOnUiThread {
                 ivPhoto.visibility = View.VISIBLE
                 ivPhoto.setImageBitmap(bitmap)
                 tvStatus.text = "✅ PHOTO REÇUE !\nDe : $from"
@@ -63,13 +69,13 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
 
         SmsReceiver.onVideoReceived = { from, videoUrl ->
-            runOnUiThread {
+            self.runOnUiThread {
                 tvStatus.text = "✅ VIDÉO REÇUE !\nDe : $from\nLien : $videoUrl"
             }
         }
 
         SmsReceiver.onPositionReceived = { lat, lon, from ->
-            runOnUiThread {
+            self.runOnUiThread {
                 otherLocation = GeoPoint(lat, lon)
                 updateOtherMarker()
                 tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
@@ -77,7 +83,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
         
         SmsReceiver.onRequestReceived = { from ->
-            runOnUiThread {
+            self.runOnUiThread {
                 currentLocation?.let {
                     sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
                     tvStatus.text = "✅ Position envoyée à $from"
@@ -86,8 +92,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
                 }
             }
         }
-
-        requestNecessaryPermissions()
     }
 
     private fun initMapDirect() {
@@ -237,7 +241,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) {}
 
-    // ===== LE LAUNCHER TOUT EN BAS — APRÈS TOUTES LES PROPRIÉTÉS =====
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
