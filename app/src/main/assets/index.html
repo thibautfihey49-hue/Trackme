@@ -2,150 +2,324 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrackMe — Sans Internet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TrackMe — GPS Précis</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui; }
-        body { background: #f5f5f5; padding: 16px; max-width: 500px; margin: 0 auto; }
-        h1 { text-align: center; color: #2196F3; margin-bottom: 20px; }
-        .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        input, button { width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; margin: 8px 0; }
-        input { border: 2px solid #ddd; }
-        button { border: none; cursor: pointer; font-weight: bold; }
-        .btn-blue { background: #2196F3; color: white; }
-        .btn-orange { background: #FF9800; color: white; }
-        .btn-green { background: #4CAF50; color: white; }
-        #status { padding: 12px; border-radius: 8px; background: #E8F5E9; color: #2E7D32; margin: 8px 0; min-height: 50px; }
-        #map { height: 300px; border-radius: 8px; background: #e0e0e0; margin-top: 10px; }
-        .coords { font-family: monospace; font-size: 14px; color: #555; margin-top: 8px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f0f4f8; padding: 12px; max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; color: #1a73e8; margin-bottom: 12px; font-size: 22px; }
+        
+        .card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        
+        input { width: 100%; padding: 14px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; margin-bottom: 10px; }
+        input:focus { outline: none; border-color: #1a73e8; }
+        
+        button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin: 4px 0; transition: opacity 0.2s; }
+        button:active { opacity: 0.85; }
+        
+        .btn-blue { background: #1a73e8; color: white; }
+        .btn-green { background: #34a853; color: white; }
+        .btn-orange { background: #fa7b17; color: white; }
+        .btn-red { background: #ea4335; color: white; }
+        
+        #status { padding: 12px; border-radius: 10px; background: #e6f4ea; color: #137333; margin: 8px 0; font-size: 14px; line-height: 1.5; }
+        .status-wait { background: #fef7e0; color: #804b00; }
+        .status-err { background: #fce8e6; color: #c5221f; }
+        
+        #map { height: 380px; border-radius: 12px; margin-top: 10px; z-index: 1; }
+        
+        .coords-box { background: #f8f9fa; padding: 12px; border-radius: 10px; margin-top: 10px; font-size: 13px; line-height: 1.8; }
+        .coord-label { font-weight: 600; color: #5f6368; display: inline-block; width: 100px; }
+        .coord-val { font-family: 'SF Mono', Consolas, monospace; color: #1a73e8; font-size: 14px; }
+        .precision { font-size: 12px; color: #5f6368; margin-top: 4px; }
+        .precision-good { color: #34a853; font-weight: 500; }
+        .precision-medium { color: #f9ab00; font-weight: 500; }
+        .precision-bad { color: #ea4335; font-weight: 500; }
+        
+        .live-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #34a853; margin-right: 6px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,168,83,0.4); } 70% { box-shadow: 0 0 0 8px rgba(52,168,83,0); } 100% { box-shadow: 0 0 0 0 rgba(52,168,83,0); } }
     </style>
-    <!-- Leaflet — carte SANS internet (tuiles en local) -->
+    <!-- Leaflet + Icônes -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Icône de position précise -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
 
-<h1>📍 TrackMe</h1>
+<h1>📍 TrackMe — GPS Précis</h1>
 
 <div class="card">
     <input type="tel" id="num" placeholder="Numéro (+336...)">
-    <div id="status">✅ Prêt — Active le GPS</div>
     
-    <button class="btn-blue" onclick="getMyGPS()">📍 Ma position</button>
-    <button class="btn-green" onclick="sendPos()">📤 Envoyer à l'autre</button>
+    <div id="status">✅ Prêt — Appuyez sur "Activer GPS"</div>
+    
+    <button class="btn-green" onclick="startGPS()">
+        <span class="live-indicator" id="gpsDot" style="background:#999"></span>
+        📡 Activer GPS en temps réel
+    </button>
+    <button class="btn-blue" onclick="centerOnMe()">🎯 Centrer sur ma position</button>
+    <button class="btn-green" onclick="sendPos()">📤 Partager ma position</button>
     <button class="btn-orange" onclick="askPos()">📥 Demander position</button>
+    <button class="btn-red" onclick="stopGPS()">⏹️ Arrêter le GPS</button>
     
-    <div class="coords">
-        Moi: <span id="myCoords">—</span><br>
-        Autre: <span id="otherCoords">—</span>
+    <div class="coords-box">
+        <div><span class="coord-label">Moi :</span> <span class="coord-val" id="myCoords">—</span></div>
+        <div><span class="coord-label">Précision :</span> <span class="coord-val" id="myAccuracy">—</span> <span id="accClass" class="precision"></span></div>
+        <div><span class="coord-label">Autre :</span> <span class="coord-val" id="otherCoords">—</span></div>
+        <div><span class="coord-label">Distance :</span> <span class="coord-val" id="distance">—</span></div>
     </div>
     
     <div id="map"></div>
 </div>
 
 <script>
-let myLat = 47.47;
-let myLon = -0.55;
+let myLat = 47.470000;
+let myLon = -0.550000;
+let myAccuracy = null;
 let otherLat = null;
 let otherLon = null;
-let map, myMarker, otherMarker;
+let map, myMarker, otherMarker, accuracyCircle;
+let watchId = null;
+let followMe = true; // Centrer automatiquement sur moi
 
-// Initialiser carte
+// Initialisation carte
 function initMap() {
-    map = L.map('map').setView([myLat, myLon], 13);
+    map = L.map('map', { zoomControl: true }).setView([myLat, myLon], 16);
+    
+    // 🗺️ TUILLES HAUTE QUALITÉ (comme Google Maps)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors',
+        detectRetina: true
     }).addTo(map);
     
-    myMarker = L.marker([myLat, myLon]).addTo(map).bindPopup("📍 Moi");
-    otherMarker = L.marker([0,0], {opacity:0}).addTo(map).bindPopup("📍 Autre");
+    // 📍 MARQUEUR MOI — style Google Maps
+    const myIcon = L.divIcon({
+        className: 'my-location-icon',
+        html: '<div style="width:24px;height:24px;background:#1a73e8;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;"><div style="width:8px;height:8px;background:white;border-radius:50%;"></div></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    myMarker = L.marker([myLat, myLon], { icon: myIcon, zIndexOffset: 1000 }).addTo(map);
+    
+    // 🭀 CERCLE DE PRÉCISION (comme Google Maps)
+    accuracyCircle = L.circle([myLat, myLon], {
+        color: '#1a73e8',
+        fillColor: '#1a73e8',
+        fillOpacity: 0.12,
+        weight: 1,
+        opacity: 0.3,
+        radius: 50
+    }).addTo(map);
+    
+    // 📍 MARQUEUR AUTRE
+    const otherIcon = L.divIcon({
+        className: 'other-location-icon',
+        html: '<div style="width:24px;height:24px;background:#ea4335;border:3px solid white;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,0.4);"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+    otherMarker = L.marker([0, 0], { icon: otherIcon, opacity: 0 }).addTo(map);
+    
+    map.setView([myLat, myLon], 16);
 }
 
-// Récupérer GPS
-async function getMyGPS() {
+// 📡 ACTIVER GPS EN TEMPS RÉEL — HAUTE PRÉCISION
+function startGPS() {
     if (!navigator.geolocation) {
-        document.getElementById('status').textContent = "❌ GPS non supporté";
+        setStatus("❌ GPS non supporté", "status-err");
         return;
     }
-    document.getElementById('status').textContent = "⏳ Recherche GPS...";
-    navigator.geolocation.getCurrentPosition(
+    
+    setStatus("⏳ Recherche GPS haute précision...", "status-wait");
+    document.getElementById('gpsDot').style.background = '#f9ab00';
+    
+    // 🔴 ARRÊTER SI DÉJÀ EN COURS
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    
+    // 🟢 DÉMARRER LE SUIVI CONTINU — PARAMÈTRES PRÉCIS
+    watchId = navigator.geolocation.watchPosition(
+        // ✅ SUCCÈS — Position reçue
         (pos) => {
             myLat = pos.coords.latitude;
             myLon = pos.coords.longitude;
-            document.getElementById('myCoords').textContent = `${myLat.toFixed(6)}, ${myLon.toFixed(6)}`;
+            myAccuracy = pos.coords.accuracy; // Précision en mètres
+            
+            // Mettre à jour l'affichage
+            document.getElementById('myCoords').textContent = 
+                `${myLat.toFixed(6)}°, ${myLon.toFixed(6)}°`;
+            
+            // Précision avec couleur
+            let accClass, accText;
+            if (myAccuracy <= 10) {
+                accClass = "precision-good"; accText = "✅ Excellent (" + Math.round(myAccuracy) + "m)";
+            } else if (myAccuracy <= 30) {
+                accClass = "precision-medium"; accText = "⚠️ Bonne (" + Math.round(myAccuracy) + "m)";
+            } else {
+                accClass = "precision-bad"; accText = "❌ Faible (" + Math.round(myAccuracy) + "m)";
+            }
+            document.getElementById('myAccuracy').textContent = Math.round(myAccuracy) + " m";
+            document.getElementById('accClass').innerHTML = accText;
+            document.getElementById('accClass').className = "precision " + accClass;
+            
+            // Mettre à jour marqueur et cercle de précision
             myMarker.setLatLng([myLat, myLon]);
-            map.setView([myLat, myLon], 13);
-            document.getElementById('status').textContent = "✅ GPS OK";
+            accuracyCircle.setLatLng([myLat, myLon]);
+            accuracyCircle.setRadius(myAccuracy);
+            
+            // Centrer automatiquement
+            if (followMe) map.setView([myLat, myLon], 17);
+            
+            // Calculer distance si autre position connue
+            if (otherLat && otherLon) updateDistance();
+            
+            // Indicateur en vert = GPS OK
+            document.getElementById('gpsDot').style.background = '#34a853';
+            setStatus("✅ GPS ACTIF — Précision: " + Math.round(myAccuracy) + "m");
         },
+        // ❌ ERREUR
         (err) => {
-            document.getElementById('status').textContent = "⚠️ " + err.message;
+            let msg;
+            switch(err.code) {
+                case err.PERMISSION_DENIED: msg = "❌ Permission GPS refusée"; break;
+                case err.POSITION_UNAVAILABLE: msg = "⚠️ Position indisponible"; break;
+                case err.TIMEOUT: msg = "⏳ GPS trop lent..."; break;
+                default: msg = "❌ Erreur GPS: " + err.message;
+            }
+            setStatus(msg, "status-err");
+            document.getElementById('gpsDot').style.background = '#ea4335';
         },
-        {enableHighAccuracy: true, timeout: 10000}
+        // 🔧 PARAMÈTRES POUR PRÉCISION MAXIMALE
+        {
+            enableHighAccuracy: true,    // 🎯 GPS PRÉCIS (pas réseau)
+            maximumAge: 2000,            // 🔄 Mise à jour max toutes les 2s
+            timeout: 10000               // ⏱️ Délai max 10s
+        }
     );
 }
 
-// Envoyer position par SMS
-async function sendPos() {
-    const num = document.getElementById('num').value.trim();
-    if (!num) { document.getElementById('status').textContent = "⚠️ Entre un numéro"; return; }
-    const dest = num.startsWith('+') ? num : '+' + num;
-    const msg = `POS:${myLat},${myLon}`;
-    
-    // Utiliser l'API SMS du navigateur / Android
-    if ('SMSManager' in window || Android) {
-        try {
-            Android.sendDataSMS(dest, 7777, msg);
-            document.getElementById('status').textContent = "✅ Envoyé à " + num;
-        } catch(e) {
-            // Fallback: ouvrir l'app SMS
-            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-            document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
-        }
-    } else {
-        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-        document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+// 🎯 Centrer sur ma position
+function centerOnMe() {
+    followMe = true;
+    map.setView([myLat, myLon], 17);
+    setStatus("🎯 Centré sur ma position");
+}
+
+// ⏹️ ARRÊTER LE GPS
+function stopGPS() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        document.getElementById('gpsDot').style.background = '#999';
+        setStatus("⏹️ GPS arrêté");
     }
 }
 
-// Demander position
+// 📤 ENVOYER MA POSITION PAR SMS DONNÉES
+async function sendPos() {
+    const num = document.getElementById('num').value.trim();
+    if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
+    const dest = num.startsWith('+') ? num : '+' + num;
+    const msg = `POS:${myLat.toFixed(6)},${myLon.toFixed(6)}`;
+    
+    try {
+        if (typeof Android !== 'undefined' && Android.sendDataSMS) {
+            Android.sendDataSMS(dest, 7777, msg);
+            setStatus("✅ Position envoyée à " + num + "\nPrécision: " + Math.round(myAccuracy||0) + "m");
+        } else {
+            window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+            setStatus("📱 Appuyez sur ENVOYER dans SMS");
+        }
+    } catch(e) {
+        window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
+        setStatus("📱 Appuyez sur ENVOYER dans SMS");
+    }
+}
+
+// 📥 DEMANDER POSITION
 async function askPos() {
     const num = document.getElementById('num').value.trim();
-    if (!num) { document.getElementById('status').textContent = "⚠️ Entre un numéro"; return; }
+    if (!num) { setStatus("⚠️ Entre un numéro", "status-wait"); return; }
     const dest = num.startsWith('+') ? num : '+' + num;
     const msg = "DEMANDE";
     
-    if ('SMSManager' in window || Android) {
-        try {
+    try {
+        if (typeof Android !== 'undefined' && Android.sendDataSMS) {
             Android.sendDataSMS(dest, 7777, msg);
-            document.getElementById('status').textContent = "⏳ Demande envoyée";
-        } catch(e) {
+            setStatus("⏳ Demande envoyée — en attente de réponse...");
+        } else {
             window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-            document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+            setStatus("📱 Appuyez sur ENVOYER dans SMS");
         }
-    } else {
+    } catch(e) {
         window.location.href = `sms:${dest}?body=${encodeURIComponent(msg)}`;
-        document.getElementById('status').textContent = "📱 Appuyer sur ENVOYER dans SMS";
+        setStatus("📱 Appuyez sur ENVOYER dans SMS");
     }
 }
 
-// Recevoir SMS depuis l'interface Android
+// 📩 RECEVOIR POSITION DE L'AUTRE
 window.receiveSMS = function(from, text) {
     if (text.startsWith("POS:")) {
         const parts = text.replace("POS:","").split(",");
         if (parts.length === 2) {
             otherLat = parseFloat(parts[0]);
             otherLon = parseFloat(parts[1]);
-            document.getElementById('otherCoords').textContent = `${otherLat.toFixed(6)}, ${otherLon.toFixed(6)}`;
+            
+            document.getElementById('otherCoords').textContent = 
+                `${otherLat.toFixed(6)}°, ${otherLon.toFixed(6)}°`;
+            
+            // Afficher marqueur
             otherMarker.setLatLng([otherLat, otherLon]);
             otherMarker.setOpacity(1);
-            map.setView([otherLat, otherLon], 11);
-            document.getElementById('status').textContent = "✅ Reçu de " + from;
+            otherMarker.bindPopup(`📍 ${from}<br>${otherLat.toFixed(6)}, ${otherLon.toFixed(6)}`).openPopup();
+            
+            // Calculer distance
+            updateDistance();
+            
+            // Centrer sur la position reçue
+            map.setView([otherLat, otherLon], 15);
+            followMe = false;
+            
+            setStatus("✅ Position reçue de " + from);
         }
     } else if (text === "DEMANDE") {
-        document.getElementById('status').textContent = "📩 Demande reçue — envoie ta position !";
+        setStatus("📩 Demande reçue — Envoyez votre position !");
+        // Réponse automatique
+        setTimeout(() => sendPos(), 500);
     }
 };
+
+// 📏 CALCULER LA DISTANCE ENTRE LES DEUX POSITIONS
+function updateDistance() {
+    const d = getDistance(myLat, myLon, otherLat, otherLon);
+    let distText;
+    if (d < 1000) distText = Math.round(d) + " m";
+    else distText = (d/1000).toFixed(2) + " km";
+    document.getElementById('distance').textContent = distText;
+}
+
+// 📏 FORMULE DE HAVERSINE — Distance en mètres
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Rayon de la Terre en mètres
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2)*Math.sin(Δφ/2) +
+              Math.cos(φ1)*Math.cos(φ2) *
+              Math.sin(Δλ/2)*Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance en mètres
+}
+
+// 📊 Mettre à jour le statut
+function setStatus(text, type="") {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.className = type;
+}
 
 window.onload = initMap;
 </script>

@@ -32,37 +32,53 @@ class MainActivity : AppCompatActivity() {
         webView = WebView(this)
         setContentView(webView)
 
-        // Activer JavaScript
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccess = true
-        webView.settings.mediaPlaybackRequiresUserGesture = false
+        // ✅ Configuration WebView pour GPS + JS
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            mediaPlaybackRequiresUserGesture = false
+            setGeolocationEnabled(true) // 📍 GPS activé pour la page web
+        }
         
-        // Interface JS ↔ Android
+        // 🔗 Interface JS ↔ Android pour l'envoi de SMS données
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
         
-        // Charger la page locale
+        // 📄 Charger la page locale
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
             }
         }
         
-        // Autoriser GPS
+        // 📍 Autoriser la demande de GPS depuis la page web
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    request?.grant(request.resources)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && request != null) {
+                    val resources = request.resources
+                    val permissions = mutableListOf<String>()
+                    for (res in resources) {
+                        if (res == PermissionRequest.RESOURCE_VIDEO_CAPTURE || 
+                            res == PermissionRequest.RESOURCE_AUDIO_CAPTURE ||
+                            res == "android.webkit.resource.LOCATION") {
+                            permissions.add(res)
+                        }
+                    }
+                    if (permissions.isNotEmpty()) {
+                        request.grant(permissions.toTypedArray())
+                    } else {
+                        request.grant(resources)
+                    }
                 }
             }
         }
 
         webView.loadUrl("file:///android_asset/index.html")
 
-        // Demander permissions
+        // 📋 Demander toutes les permissions au démarrage
         checkPermissions()
         
-        // Enregistrer récepteur SMS
+        // 📡 Enregistrer le récepteur SMS
         registerReceiver(smsReceiver, IntentFilter("android.provider.Telephony.SMS_RECEIVED"))
     }
 
@@ -70,6 +86,8 @@ class MainActivity : AppCompatActivity() {
         val needed = mutableListOf<String>()
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            needed.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.SEND_SMS)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
@@ -81,16 +99,27 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, needed.toTypedArray(), 100)
     }
 
-    // Interface appelée depuis JS
+    // 🔗 Interface accessible depuis JavaScript
     class WebAppInterface(private val context: Context) {
         @JavascriptInterface
-        fun sendDataSMS(dest: String, port: Int, message: String) {
-            val sm = SmsManager.getDefault()
-            sm.sendDataMessage(dest, null, port.toShort(), message.toByteArray(Charsets.UTF_8), null, null)
+        fun sendDataSMS(destination: String, port: Int, message: String) {
+            try {
+                val sm = SmsManager.getDefault()
+                sm.sendDataMessage(
+                    destination,
+                    null,
+                    port.toShort(),
+                    message.toByteArray(Charsets.UTF_8),
+                    null,
+                    null
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
-    // Récepteur SMS
+    // 📡 Récepteur SMS — passe les messages à la page web
     inner class SmsReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             try {
@@ -102,16 +131,20 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     @Suppress("DEPRECATION")
                     val pdus = intent.extras?.get("pdus") as? Array<*> ?: return
-                    pdus.map { SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
+                    pdus.map { android.telephony.SmsMessage.createFromPdu(it as ByteArray) }.toTypedArray()
                 }
 
                 for (msg in messages) {
                     val from = msg.originatingAddress ?: continue
                     val text = msg.messageBody ?: continue
                     
-                    // Envoyer au JS
+                    // Échapper les apostrophes pour JS
+                    val safeFrom = from.replace("'", "\\'")
+                    val safeText = text.replace("'", "\\'")
+                    
+                    // Envoyer au JavaScript
                     runOnUiThread {
-                        webView.evaluateJavascript("receiveSMS('$from', '$text')", null)
+                        webView.evaluateJavascript("receiveSMS('$safeFrom', '$safeText')", null)
                     }
                 }
             } catch (_: Exception) {}

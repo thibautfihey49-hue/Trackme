@@ -1,10 +1,10 @@
 {
-    "name": "TrackMe Sans Internet",
+    "name": "TrackMe — GPS Précis",
     "short_name": "TrackMe",
     "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#2196F3",
+    "theme_color": "#1a73e8",
     "icons": [
         {
             "src": "icon.svg",
