@@ -33,20 +33,20 @@
 <div class="card">
     <input type="tel" id="num" placeholder="Numéro (ex: 0612345678)">
     
-    <div id="status">⏳ Prêt — Clique sur Activer GPS</div>
+    <div id="status">👋 Bienvenue ! Clique sur le bouton pour partager ta position</div>
     
-    <button class="btn-green" onclick="startGPS()">
-        <span class="dot" id="gpsDot"></span> 📡 Activer GPS
+    <button class="btn-green" onclick="demanderPosition()">
+        📍 Partager ma position
     </button>
     <button class="btn-blue" onclick="centerOnMe()">🎯 Centrer sur moi</button>
-    <button class="btn-green" onclick="sendPos()">📤 Partager ma position</button>
-    <button class="btn-orange" onclick="askPos()">📥 Demander position</button>
-    <button class="btn-red" onclick="stopGPS()">⏹️ Arrêter GPS</button>
+    <button class="btn-green" onclick="sendPos()">📤 Envoyer ma position à quelqu'un</button>
+    <button class="btn-orange" onclick="askPos()">📥 Demander la position de quelqu'un</button>
+    <button class="btn-red" onclick="stopGPS()">⏹️ Arrêter le GPS</button>
     
     <div class="coords">
-        <div><strong>Moi:</strong> <span id="myCoords">—</span></div>
+        <div><strong>Ma position:</strong> <span id="myCoords">—</span></div>
         <div><strong>Précision:</strong> <span id="myAcc">—</span></div>
-        <div><strong>Autre:</strong> <span id="otherCoords">—</span></div>
+        <div><strong>Autre personne:</strong> <span id="otherCoords">—</span></div>
         <div><strong>Distance:</strong> <span id="distance">—</span></div>
     </div>
     
@@ -59,6 +59,7 @@ let otherLat = null, otherLon = null;
 let map, myMarker, otherMarker, accCircle;
 let watchId = null;
 
+// Initialisation de la carte
 function initMap() {
     map = L.map('map').setView([47.4764, -0.5515], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -80,21 +81,23 @@ function initMap() {
     otherMarker = L.marker([0,0], {icon:otherIcon, opacity:0}).addTo(map);
 }
 
-function startGPS() {
+// ✅ LA FONCTION QUI DÉCLENCHE LA POPUP COMME UN SITE INTERNET
+function demanderPosition() {
     if(!navigator.geolocation) {
-        setStatus("❌ GPS non supporté", true);
+        setStatus("❌ La géolocalisation n'est pas supportée sur cet appareil", true);
         return;
     }
-    setStatus("⏳ Recherche GPS... Sors à l'extérieur !");
-    document.getElementById('gpsDot').classList.remove('active');
     
-    if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+    setStatus("🔔 La popup va apparaître → Clique sur AUTORISER !");
     
-    watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-            myLat = pos.coords.latitude;
-            myLon = pos.coords.longitude;
-            myAcc = pos.coords.accuracy;
+    // ✅ ICI : LE NAVIGATEUR AFFICHE SA PROPRE POPUP
+    // "Ce site veut accéder à votre position ? Autoriser / Refuser"
+    navigator.geolocation.watchPosition(
+        // ✅ Si l'utilisateur clique sur "AUTORISER"
+        (position) => {
+            myLat = position.coords.latitude;
+            myLon = position.coords.longitude;
+            myAcc = position.coords.accuracy;
             
             document.getElementById('myCoords').textContent = myLat.toFixed(6) + ", " + myLon.toFixed(6);
             document.getElementById('myAcc').textContent = Math.round(myAcc) + " mètres";
@@ -106,28 +109,31 @@ function startGPS() {
             
             if(otherLat && otherLon) updateDistance();
             
-            document.getElementById('gpsDot').classList.add('active');
-            setStatus("✅ GPS OK ! Précision: " + Math.round(myAcc) + "m");
+            setStatus("✅ Position obtenue !\n📍 " + myLat.toFixed(6) + ", " + myLon.toFixed(6) + "\n🎯 Précision: " + Math.round(myAcc) + "m");
         },
-        (err) => {
-            let msg;
-            if(err.code === err.PERMISSION_DENIED)
-                msg = "❌ Permission refusée !\n→ Va dans Paramètres → Applications → TrackMe → Autorisations → Localisation → Autoriser seulement quand utilisée";
-            else if(err.code === err.POSITION_UNAVAILABLE)
-                msg = "⚠️ GPS indisponible !\n→ Active le GPS de ton téléphone\n→ Sors à l'extérieur et patiente 30s";
-            else if(err.code === err.TIMEOUT)
-                msg = "⏳ GPS trop lent...\n→ Sors dehors et réessaie";
-            else
-                msg = "❌ Erreur: " + err.message;
-            setStatus(msg, true);
-            document.getElementById('gpsDot').classList.remove('active');
+        // ❌ Si l'utilisateur clique sur "REFUSER"
+        (erreur) => {
+            let message;
+            if(erreur.code === erreur.PERMISSION_DENIED) {
+                message = "❌ Tu as refusé l'accès à la position.\n→ Clique à nouveau sur le bouton et choisis AUTORISER";
+            } else if(erreur.code === erreur.POSITION_UNAVAILABLE) {
+                message = "⚠️ Position indisponible.\n→ Sors à l'extérieur et réessaie";
+            } else {
+                message = "❌ Erreur: " + erreur.message;
+            }
+            setStatus(message, true);
         },
-        {enableHighAccuracy:true, maximumAge:0, timeout:30000}
+        // Options pour une précision maximale
+        {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 0
+        }
     );
 }
 
 function centerOnMe() {
-    if(!myLat) { setStatus("⚠️ GPS pas encore prêt", true); return; }
+    if(!myLat) { setStatus("⚠️ D'abord clique sur 'Partager ma position'", true); return; }
     map.setView([myLat, myLon], 17);
     setStatus("🎯 Centré sur ma position");
 }
@@ -136,15 +142,14 @@ function stopGPS() {
     if(watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        document.getElementById('gpsDot').classList.remove('active');
         setStatus("⏹️ GPS arrêté");
     }
 }
 
 function sendPos() {
-    if(!myLat) { setStatus("⚠️ GPS pas encore prêt", true); return; }
+    if(!myLat) { setStatus("⚠️ D'abord clique sur 'Partager ma position'", true); return; }
     let num = document.getElementById('num').value.trim().replace(/\s/g,'');
-    if(!num) { setStatus("⚠️ Entre un numéro", true); return; }
+    if(!num) { setStatus("⚠️ Entre un numéro de téléphone", true); return; }
     
     let dest = num.startsWith('0') ? '+33' + num.substring(1) : num;
     if(!dest.startsWith('+')) dest = '+' + dest;
@@ -154,7 +159,7 @@ function sendPos() {
     try {
         if(typeof Android !== 'undefined' && Android.sendDataSMS) {
             Android.sendDataSMS(dest, 7777, msg);
-            setStatus("✅ Envoyé à " + dest);
+            setStatus("✅ Position envoyée à " + dest);
         } else {
             window.location.href = "sms:" + dest + "?body=" + encodeURIComponent(msg);
             setStatus("📱 Appuie sur ENVOYER dans SMS");
@@ -166,7 +171,7 @@ function sendPos() {
 
 function askPos() {
     let num = document.getElementById('num').value.trim().replace(/\s/g,'');
-    if(!num) { setStatus("⚠️ Entre un numéro", true); return; }
+    if(!num) { setStatus("⚠️ Entre un numéro de téléphone", true); return; }
     
     let dest = num.startsWith('0') ? '+33' + num.substring(1) : num;
     if(!dest.startsWith('+')) dest = '+' + dest;
