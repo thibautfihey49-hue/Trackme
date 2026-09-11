@@ -7,7 +7,7 @@ import android.os.Build
 import android.provider.Telephony
 import android.telephony.SmsMessage
 
-class SmsReceiverBroadcast : BroadcastReceiver() {
+class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         try {
             context ?: return
@@ -25,25 +25,18 @@ class SmsReceiverBroadcast : BroadcastReceiver() {
                 val from = msg.originatingAddress ?: continue
                 val text = msg.messageBody ?: continue
 
-                when {
-                    text.startsWith("POS:") -> {
-                        val parts = text.removePrefix("POS:").split(",")
-                        if (parts.size == 2) {
-                            val lat = parts[0].toDoubleOrNull()
-                            val lon = parts[1].toDoubleOrNull()
-                            if (lat != null && lon != null) {
-                                val i = Intent("TRACKME_POS")
-                                i.putExtra("lat", lat)
-                                i.putExtra("lon", lon)
-                                i.putExtra("from", from)
-                                context.sendBroadcast(i)
-                            }
+                if (text.startsWith("POS:")) {
+                    val parts = text.removePrefix("POS:").split(",")
+                    if (parts.size == 2) {
+                        val lat = parts[0].toDoubleOrNull()
+                        val lon = parts[1].toDoubleOrNull()
+                        if (lat != null && lon != null) {
+                            val i = Intent("TRACKME_POS")
+                            i.putExtra("lat", lat)
+                            i.putExtra("lon", lon)
+                            i.putExtra("from", from)
+                            context.sendBroadcast(i)
                         }
-                    }
-                    text == "DEMANDE" -> {
-                        val i = Intent("TRACKME_REQ")
-                        i.putExtra("from", from)
-                        context.sendBroadcast(i)
                     }
                 }
             }
