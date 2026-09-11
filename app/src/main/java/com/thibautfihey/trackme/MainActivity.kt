@@ -108,13 +108,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ DEMANDER DE DÉSACTIVER L'OPTIMISATION BATTERIE
     private fun checkBatteryOptimization() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val powerMgr = getSystemService(Context.POWER_SERVICE) as PowerManager
             val pkg = packageName
             if (!powerMgr.isIgnoringBatteryOptimizations(pkg)) {
-                tvStatus.text = "⚠️ Désactiver l'optimisation batterie\npour que l'app ne se ferme JAMAIS"
+                tvStatus.text = "⚠️ Désactiver l'optimisation batterie\npour que le service continue en arrière-plan"
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                     data = Uri.parse("package:$pkg")
                 }
@@ -126,19 +125,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initApp() {
-        tvStatus.text = "🟢 TRACKME ACTIF 24h/24 — JAMAIS FERMÉ\n✅ Suivi toutes les min actif"
+        tvStatus.text = "🟢 SERVICE DÉMARRÉ\n✅ Ferme l'app → le service continue !\n📍 Suivi toutes les minutes actif"
         startService(Intent(this, LocationService::class.java))
         
         SmsReceiver.onRequestReceived = { from ->
             sendPosTo(from)
-            runOnUiThread { tvStatus.text = "📩 Demande de $from → Répondu\n🟢 Toujours actif" }
+            runOnUiThread { 
+                tvStatus.text = "📩 Demande de $from → Répondu\n✅ Service actif en arrière-plan" 
+            }
         }
         
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLoc = GeoPoint(lat, lon)
                 updateOtherMarker()
-                tvStatus.text = "✅ POSITION REÇUE DE $from\n📍 ${"%.6f".format(lat)}, ${"%.6f".format(lon)}\n🟢 Toujours actif"
+                tvStatus.text = "✅ POSITION REÇUE DE $from\n📍 ${"%.6f".format(lat)}, ${"%.6f".format(lon)}"
             }
         }
         
@@ -206,7 +207,7 @@ class MainActivity : AppCompatActivity() {
     private fun sendPos() {
         val n = getNum() ?: return
         sendPosTo(n)
-        tvStatus.text = "📤 Position envoyée !\n🟢 Toujours actif"
+        tvStatus.text = "📤 Position envoyée !\n✅ Service actif en arrière-plan"
     }
 
     private fun toggleTrack() {
@@ -214,19 +215,16 @@ class MainActivity : AppCompatActivity() {
             timer!!.cancel()
             timer = null
             btnTrack.text = "🔄 SUIVRE TOUTES LES MINUTES"
-            tvStatus.text = "✅ Suivi ARRÊTÉ\n🟢 L'app reste active"
+            tvStatus.text = "✅ Suivi ARRÊTÉ\n✅ Service continue en arrière-plan"
         } else {
             val n = getNum() ?: return
             btnTrack.text = "⏹️ ARRÊTER LE SUIVI"
-            tvStatus.text = "🔄 SUIVI EN COURS — Toutes les minutes\n🟢 JAMAIS FERMÉ"
+            tvStatus.text = "🔄 SUIVI EN COURS — Toutes les minutes\n✅ Ferme l'app → ça continue !"
             
             timer = Timer().apply {
                 scheduleAtFixedRate(object : TimerTask() {
                     override fun run() {
-                        runOnUiThread {
-                            sendSms(n, "TRACKME:REQUEST")
-                            tvStatus.text = "🔄 Demande envoyée — Prochaine dans 60s\n🟢 Toujours actif"
-                        }
+                        sendSms(n, "TRACKME:REQUEST")
                     }
                 }, 0, 60000)
             }
@@ -274,8 +272,8 @@ class MainActivity : AppCompatActivity() {
         map.onPause()
     }
 
+    // ✅ Quand tu fermes l'app → minimiser, NE PAS arrêter le service
     override fun onBackPressed() {
-        // ✅ Ne pas fermer l'app quand on appuie sur retour
         moveTaskToBack(true)
     }
 }

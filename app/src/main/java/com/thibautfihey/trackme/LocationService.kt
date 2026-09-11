@@ -31,12 +31,12 @@ class LocationService : Service() {
         super.onCreate()
         createNotificationChannel()
         
-        // ✅ VERROUILLAGE ÉCRAN/CPU — NE JAMAIS S'ENDORMIR
+        // ✅ WakeLock : CPU ne se met pas en veille
         val powerMgr = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         wakeLock = powerMgr.newWakeLock(
             android.os.PowerManager.PARTIAL_WAKE_LOCK,
             "TrackMe:WakeLock"
-        ).apply { acquire(10*60*1000L) } // 10 minutes, se renouvelle auto
+        ).apply { acquire(10*60*1000L) }
         
         fused = LocationServices.getFusedLocationProviderClient(this)
         callback = object : LocationCallback() {
@@ -56,10 +56,9 @@ class LocationService : Service() {
                 "TrackMe — Service actif",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Localisation permanente — NE PAS FERMER"
+                description = "Localisation & SMS actifs en arrière-plan"
                 enableLights(false)
                 enableVibration(false)
-                setShowBadge(true)
                 setShowBadge(true)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -69,8 +68,8 @@ class LocationService : Service() {
 
     override fun onStartCommand(i: Intent?, f: Int, id: Int): Int {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("🟢 TrackMe — ACTIF EN PERMANENCE")
-            .setContentText("Ne pas fermer — Localisation active 24h/24")
+            .setContentTitle("🟢 TrackMe — SERVICE ACTIF")
+            .setContentText("Ferme l'app → le service continue de fonctionner")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setColor(Color.parseColor("#00C853"))
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -94,8 +93,6 @@ class LocationService : Service() {
         }
 
         isRunning = true
-        
-        // ✅ SI LE SERVICE EST TUÉ → SE RELANCE TOUT DE SUITE
         return START_STICKY
     }
 
@@ -108,13 +105,15 @@ class LocationService : Service() {
             wakeLock?.release()
         } catch (e: Exception) {}
         isRunning = false
-        Log.w("LocationService", "⚠️ Service détruit — RELANCE AUTOMATIQUE")
+        Log.w("LocationService", "Service détruit — redémarrage auto")
     }
 
+    // ✅ QUAND TU FERMES L'APP → SEUL LE SERVICE SE RELANCE, PAS L'INTERFACE
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // ✅ SI L'UTILISATEUR FERME L'APP → SE RELANCE IMMÉDIATEMENT
-        Log.d("LocationService", "🔄 App fermée par l'utilisateur — Relance...")
+        Log.d("LocationService", "✅ App fermée par l'utilisateur — SERVICE CONTINUE EN ARRIÈRE-PLAN")
+        
+        // ✅ RELANCE SEULEMENT LE SERVICE, PAS L'ACTIVITÉ
         val restartIntent = Intent(applicationContext, LocationService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(restartIntent)
