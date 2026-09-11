@@ -17,15 +17,20 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 
 class MainActivity : AppCompatActivity(), LocationListener {
 
     private lateinit var etNumber: EditText
     private lateinit var tvStatus: TextView
-    private var map: MapView? = null
-    private var locationManager: LocationManager? = null
+    private lateinit var map: MapView
+    private lateinit var locationManager: LocationManager
     private var myLat = 47.47
     private var myLon = -0.55
+    private var otherLat = 0.0
+    private var otherLon = 0.0
+    private lateinit var myMarker: Marker
+    private lateinit var otherMarker: Marker
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,26 +38,30 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
         etNumber = findViewById(R.id.etNumber)
         tvStatus = findViewById(R.id.tvStatus)
+        map = findViewById(R.id.map)
 
-        try {
-            map = findViewById(R.id.map)
-            Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
-            map?.setTileSource(TileSourceFactory.MAPNIK)
-            map?.setMultiTouchControls(true)
-            map?.controller?.setZoom(15.0)
-            map?.controller?.setCenter(GeoPoint(myLat, myLon))
-        } catch (e: Exception) {
-            Toast.makeText(this, "Erreur carte: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        // 🗺️ CARTE OPTIMISÉE
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(15.0)
+        map.controller.setCenter(GeoPoint(myLat, myLon))
 
-        try {
-            locationManager = getSystemService(LOCATION_SERVICE) as LocationManager?
-        } catch (e: Exception) {
-            Toast.makeText(this, "Erreur GPS: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        // Marqueurs
+        myMarker = Marker(map)
+        myMarker.position = GeoPoint(myLat, myLon)
+        myMarker.title = "📍 Ma position"
+        map.overlays.add(myMarker)
 
-        tvStatus.text = "✅ PRÊT !\n→ Entre un numéro (ex: +336...)"
-        
+        otherMarker = Marker(map)
+        otherMarker.position = GeoPoint(0.0, 0.0)
+        otherMarker.title = "📍 Autre position"
+        otherMarker.isVisible = false
+        map.overlays.add(otherMarker)
+
+        locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+
+        tvStatus.text = "✅ PRÊT !\nEntre un numéro (+33...)"
         requestPermissions()
     }
 
@@ -61,7 +70,6 @@ class MainActivity : AppCompatActivity(), LocationListener {
             startGPS()
             return
         }
-
         val needed = mutableListOf<String>()
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -69,18 +77,14 @@ class MainActivity : AppCompatActivity(), LocationListener {
             needed.add(Manifest.permission.SEND_SMS)
         if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECEIVE_SMS)
-
-        if (needed.isNotEmpty()) {
-            requestPermissions(needed.toTypedArray(), 100)
-        } else {
-            startGPS()
-        }
+        if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 100)
+        else startGPS()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 100) {
-            val ok = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+    override fun onRequestPermissionsResult(rq: Int, p: Array<out String>, res: IntArray) {
+        super.onRequestPermissionsResult(rq, p, res)
+        if (rq == 100) {
+            val ok = res.all { it == PackageManager.PERMISSION_GRANTED }
             tvStatus.text = if (ok) "✅ Permissions OK !" else "⚠️ Permissions limitées"
             startGPS()
         }
@@ -88,12 +92,11 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     private fun startGPS() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             return
-        }
         try {
-            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
-            locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 5f, this)
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 5f, this)
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 5f, this)
         } catch (e: Exception) {
             tvStatus.text = "⚠️ GPS indisponible"
         }
@@ -102,25 +105,19 @@ class MainActivity : AppCompatActivity(), LocationListener {
     override fun onLocationChanged(location: Location) {
         myLat = location.latitude
         myLon = location.longitude
+        myMarker.position = GeoPoint(myLat, myLon)
+        map.controller.setCenter(GeoPoint(myLat, myLon))
+        map.invalidate()
         tvStatus.text = "📍 $myLat\n$myLon"
-        try {
-            map?.controller?.setCenter(GeoPoint(myLat, myLon))
-        } catch (e: Exception) {}
     }
 
     fun sendMyPosition(v: View) {
         val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) {
-            tvStatus.text = "⚠️ Entre un numéro"
-            return
-        }
+        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
         val dest = if (num.startsWith("+")) num else "+$num"
         try {
-            SmsManager.getDefault().sendDataMessage(
-                dest, null, 7777.toShort(),
-                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8),
-                null, null
-            )
+            SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
+                "POS:$myLat,$myLon".toByteArray(Charsets.UTF_8), null, null)
             tvStatus.text = "✅ Envoyé à $num"
         } catch (e: Exception) {
             tvStatus.text = "❌ ${e.message}"
@@ -129,21 +126,24 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     fun requestPosition(v: View) {
         val num = etNumber.text.toString().trim()
-        if (num.isEmpty()) {
-            tvStatus.text = "⚠️ Entre un numéro"
-            return
-        }
+        if (num.isEmpty()) { tvStatus.text = "⚠️ Entre un numéro"; return }
         val dest = if (num.startsWith("+")) num else "+$num"
         try {
-            SmsManager.getDefault().sendDataMessage(
-                dest, null, 7777.toShort(),
-                "DEMANDE".toByteArray(Charsets.UTF_8),
-                null, null
-            )
+            SmsManager.getDefault().sendDataMessage(dest, null, 7777.toShort(),
+                "DEMANDE".toByteArray(Charsets.UTF_8), null, null)
             tvStatus.text = "⏳ Demande envoyée"
         } catch (e: Exception) {
             tvStatus.text = "❌ ${e.message}"
         }
+    }
+
+    fun updateOtherPosition(lat: Double, lon: Double) {
+        otherLat = lat
+        otherLon = lon
+        otherMarker.position = GeoPoint(lat, lon)
+        otherMarker.isVisible = true
+        map.invalidate()
+        tvStatus.text = "📍 Autre: $lat\n$lon"
     }
 
     override fun onStatusChanged(p: String?, s: Int, e: Bundle?) {}
