@@ -54,31 +54,30 @@ class MainActivity : AppCompatActivity(), LocationListener {
     }
 
     private fun setupSmsReceivers() {
-        val mainActivity = this
         SmsReceiver.onPhotoReceived = { from, bitmap ->
-            mainActivity.runOnUiThread {
-                mainActivity.ivPhoto.visibility = View.VISIBLE
-                mainActivity.ivPhoto.setImageBitmap(bitmap)
-                mainActivity.tvStatus.text = "PHOTO REÇUE de $from"
+            runOnUiThread {
+                ivPhoto.visibility = View.VISIBLE
+                ivPhoto.setImageBitmap(bitmap)
+                tvStatus.text = "PHOTO REÇUE de $from"
             }
         }
         SmsReceiver.onVideoReceived = { from, videoUrl ->
-            mainActivity.runOnUiThread {
-                mainActivity.tvStatus.text = "VIDÉO REÇUE de $from"
+            runOnUiThread {
+                tvStatus.text = "VIDÉO REÇUE de $from"
             }
         }
         SmsReceiver.onPositionReceived = { lat, lon, from ->
-            mainActivity.runOnUiThread {
-                mainActivity.otherLocation = GeoPoint(lat, lon)
-                mainActivity.updateOtherMarker()
-                mainActivity.tvStatus.text = "POSITION: $lat / $lon de $from"
+            runOnUiThread {
+                otherLocation = GeoPoint(lat, lon)
+                doUpdateOtherMarker(this@MainActivity.map)
+                tvStatus.text = "POSITION: $lat / $lon de $from"
             }
         }
         SmsReceiver.onRequestReceived = { from ->
-            mainActivity.runOnUiThread {
-                mainActivity.currentLocation?.let {
-                    mainActivity.sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
-                    mainActivity.tvStatus.text = "Position envoyée à $from"
+            runOnUiThread {
+                currentLocation?.let {
+                    sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
+                    tvStatus.text = "Position envoyée à $from"
                 }
             }
         }
@@ -100,31 +99,31 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onLocationChanged(location: Location) {
         currentLocation = GeoPoint(location.latitude, location.longitude)
-        updateMyMarker()
+        doUpdateMyMarker(map)
     }
 
-    private fun updateMyMarker() {
+    private fun doUpdateMyMarker(mapView: MapView) {
         currentLocation?.let { point ->
-            map.overlays.removeAll { it is Marker && it.id == "my_position" }
-            val marker = Marker(map)
+            mapView.overlays.removeAll { it is Marker && it.id == "my_position" }
+            val marker = Marker(mapView)
             marker.id = "my_position"
             marker.position = point
             marker.title = "Ma position"
-            map.overlays.add(marker)
+            mapView.overlays.add(marker)
             mapController.setCenter(point)
-            map.invalidate()
+            mapView.invalidate()
         }
     }
 
-    private fun updateOtherMarker() {
+    private fun doUpdateOtherMarker(mapView: MapView) {
         otherLocation?.let { point ->
-            map.overlays.removeAll { it is Marker && it.id == "other_position" }
-            val marker = Marker(map)
+            mapView.overlays.removeAll { it is Marker && it.id == "other_position" }
+            val marker = Marker(mapView)
             marker.id = "other_position"
             marker.position = point
             marker.title = "Position de l'autre"
-            map.overlays.add(marker)
-            map.invalidate()
+            mapView.overlays.add(marker)
+            mapView.invalidate()
         }
     }
 
