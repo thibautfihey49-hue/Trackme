@@ -35,24 +35,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
     private lateinit var locationManager: LocationManager
     private var currentLocation: GeoPoint? = null
     private var otherLocation: GeoPoint? = null
-    private var mapInitialized = false
     
-    private val requestPermissionsLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.all { it.value }
-        if (allGranted) {
-            tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
-            if (!mapInitialized) {
-                initMapNow()
-                startLocationUpdatesNow()
-                mapInitialized = true
-            }
-        } else {
-            tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -87,7 +70,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onPositionReceived = { lat, lon, from ->
             runOnUiThread {
                 otherLocation = GeoPoint(lat, lon)
-                updateOtherMarkerNow()
+                updateOtherMarker()
                 tvStatus.text = "✅ POSITION REÇUE !\nDe : $from\nLat: $lat\nLon: $lon"
             }
         }
@@ -95,7 +78,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         SmsReceiver.onRequestReceived = { from ->
             runOnUiThread {
                 currentLocation?.let {
-                    sendSmsDataNow(from, "POSITION:${it.latitude},${it.longitude}")
+                    sendSmsData(from, "POSITION:${it.latitude},${it.longitude}")
                     tvStatus.text = "✅ Position envoyée à $from"
                 } ?: run {
                     tvStatus.text = "⚠️ Position pas encore disponible"
@@ -104,6 +87,19 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
 
         requestNecessaryPermissions()
+    }
+
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.all { it.value }
+        if (allGranted) {
+            tvStatus.text = "✅ Toutes permissions accordées ! Prêt."
+            initMapDirect()
+            startLocationUpdatesDirect()
+        } else {
+            tvStatus.text = "⚠️ Permissions refusées — Certaines fonctionnalités limitées"
+        }
     }
 
     private fun requestNecessaryPermissions() {
@@ -134,18 +130,17 @@ class MainActivity : AppCompatActivity(), LocationListener {
             requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             tvStatus.text = "✅ Toutes permissions déjà accordées ! Prêt."
-            initMapNow()
-            startLocationUpdatesNow()
-            mapInitialized = true
+            initMapDirect()
+            startLocationUpdatesDirect()
         }
     }
 
-    private fun initMapNow() {
+    private fun initMapDirect() {
         val startPoint = GeoPoint(47.47, -0.55)
         mapController.setCenter(startPoint)
     }
 
-    private fun startLocationUpdatesNow() {
+    private fun startLocationUpdatesDirect() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             try {
                 locationManager.requestLocationUpdates(
@@ -164,10 +159,10 @@ class MainActivity : AppCompatActivity(), LocationListener {
 
     override fun onLocationChanged(location: Location) {
         currentLocation = GeoPoint(location.latitude, location.longitude)
-        updateMyMarkerNow()
+        updateMyMarker()
     }
 
-    private fun updateMyMarkerNow() {
+    private fun updateMyMarker() {
         currentLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "my_position" }
             val marker = Marker(map)
@@ -181,7 +176,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
         }
     }
 
-    private fun updateOtherMarkerNow() {
+    private fun updateOtherMarker() {
         otherLocation?.let { point ->
             map.overlays.removeAll { it is Marker && it.id == "other_position" }
             val marker = Marker(map)
@@ -201,7 +196,7 @@ class MainActivity : AppCompatActivity(), LocationListener {
             return
         }
         currentLocation?.let {
-            sendSmsDataNow(num, "POSITION:${it.latitude},${it.longitude}")
+            sendSmsData(num, "POSITION:${it.latitude},${it.longitude}")
             tvStatus.text = "✅ Position envoyée !"
         } ?: run {
             tvStatus.text = "⚠️ Position GPS non disponible encore"
@@ -214,26 +209,26 @@ class MainActivity : AppCompatActivity(), LocationListener {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsDataNow(num, "REQUEST_POSITION")
+        sendSmsData(num, "REQUEST_POSITION")
         tvStatus.text = "⏳ Demande de position envoyée..."
     }
 
-    fun sendPhotoBack(v: View) = sendSmsNow("PHOTO")
-    fun sendPhotoFront(v: View) = sendSmsNow("PHOTO:FRONT")
-    fun sendVideoBack(v: View) = sendSmsNow("VIDEO")
-    fun sendVideoFront(v: View) = sendSmsNow("VIDEO:FRONT")
+    fun sendPhotoBack(v: View) = sendSmsCmd("PHOTO")
+    fun sendPhotoFront(v: View) = sendSmsCmd("PHOTO:FRONT")
+    fun sendVideoBack(v: View) = sendSmsCmd("VIDEO")
+    fun sendVideoFront(v: View) = sendSmsCmd("VIDEO:FRONT")
 
-    private fun sendSmsNow(cmd: String) {
+    private fun sendSmsCmd(cmd: String) {
         val num = etNumber.text.toString().trim()
         if (num.isEmpty()) {
             tvStatus.text = "⚠️ Entre un numéro d'abord"
             return
         }
-        sendSmsDataNow(num, cmd)
+        sendSmsData(num, cmd)
         tvStatus.text = "⏳ Commande envoyée : $cmd"
     }
 
-    private fun sendSmsDataNow(num: String, message: String) {
+    private fun sendSmsData(num: String, message: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
             tvStatus.text = "⚠️ Permission SEND_SMS manquante"
